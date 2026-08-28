@@ -3,14 +3,16 @@ import type { AppState } from "./state.ts";
 import { createInitialState } from "./state.ts";
 import { getCurrentLocation } from "../services/geolocation.ts";
 import { fetchSatelliteData } from "../services/satellite-data.ts";
+import { propagateSatellites } from "../services/satellite-propagation.ts";
 
 /**
  * Boot the application into the given mount element.
  *
- * Requests the browser geolocation once and fetches the curated satellite data,
- * then re-renders the dashboard as each resolves. The precise position stays in
- * the browser; only a status is rendered. Satellite data failures surface a
- * retryable error rather than fake data.
+ * Requests the browser geolocation once, fetches the curated satellite data,
+ * then propagates the satellites to the current instant with SGP4, re-rendering
+ * the dashboard as each stage resolves. The precise position stays in the
+ * browser; only a status is rendered. Failures degrade gracefully (retry for
+ * data, per-satellite skips for propagation).
  */
 export function bootApp(app: HTMLElement): void {
   const state: AppState = createInitialState();
@@ -19,6 +21,7 @@ export function bootApp(app: HTMLElement): void {
     renderDashboard(app, {
       location: state.location,
       satellites: state.satellites,
+      positions: state.positions,
       onRetrySatellites: loadSatellites,
     });
   }
@@ -30,6 +33,7 @@ export function bootApp(app: HTMLElement): void {
     const result = await fetchSatelliteData();
     if (result.ok) {
       state.satellites = { kind: "loaded", satellites: result.satellites };
+      computePositions(result.satellites);
     } else {
       state.satellites = {
         kind: "error",
@@ -37,6 +41,18 @@ export function bootApp(app: HTMLElement): void {
       };
     }
     render();
+  }
+
+  function computePositions(satellites: NonNullable<
+    Extract<AppState["satellites"], { kind: "loaded" }>["satellites"]
+  >): void {
+    const now = new Date();
+    const results = propagateSatellites(satellites, now);
+    state.positions = {
+      kind: "ready",
+      results,
+      computedAt: now.getTime(),
+    };
   }
 
   void getCurrentLocation().then((result) => {

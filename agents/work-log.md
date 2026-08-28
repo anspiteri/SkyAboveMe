@@ -15,15 +15,67 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phase 3 (Satellite data) done — proxy + client fetch + basic names/
-> counts UI, verified live through the dev server. Next up: Phase 4
-> (Propagation with SGP4).
+> **Status:** Phase 4 (Propagation) done — SGP4 wired in, current ECI position
+> computed per satellite and shown. Next up: Phase 5 (Observer-relative
+> position → altitude/azimuth/distance).
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Phase 4: Propagation (SGP4)
+
+**What**
+
+* `src/services/satellite-propagation.ts` — SGP4 integration:
+  * `buildOmm(satellite)` rebuilds the OMM object satellite.js needs from the
+    domain `Satellite` (identity fields are placeholders; SGP4 only reads the
+    orbital elements).
+  * `buildSatRec(satellite): SatRec | null` — `json2satrec`, null on failure.
+  * `propagateSatellite(satellite, date): PropagateResult` —
+    `propagate(..., { communityDecayCheckEnabled: true })` producing an ECI
+    (TEME) position/velocity, or a `skip` with a diagnostic reason.
+  * `propagateSatellites(satellites, date)` maps over a set (AGENTS.md §17:
+    skip a failed satellite, don't break the app).
+* `src/domain/satellite.ts` — added `EciVector` + `SatellitePosition`
+  (noradId, timestamp, ECI position/velocity in km).
+* Wiring: `state.ts` adds `PropagationState` (idle | ready);
+  `app.ts` propagates at `new Date()` once satellites load; `Dashboard.ts` and
+  `SatelliteList.ts` render each satellite's current ECI coordinates.
+* `vite.config.ts` — aliases `satellite.js` → `tools/satellite-entry.ts`, a
+  pure-JS shim re-exporting only the SGP4 submodules, so the optional WASM
+  worker (which breaks the Vite build and is dead weight) is never bundled.
+  `tools/satellite-entry.ts` is not under `src/`/`api/`, so Deno typecheck/test
+  keep using the real package root.
+* Tests: `tests/services/satellite-propagation_test.ts` (7 tests) including a
+  pinned SGP4 regression reference (ISS ECI at epoch), LEO-range sanity,
+  determinism, and skip-on-bad-elements. Full suite: 22 passing.
+
+**Why**
+
+* AGENTS.md Phase 4: "Integrate SGP4. Calculate satellite position for the
+  current time."
+* AGENTS.md §10 (explicit coordinate frames — ECI/TEME), §17 (graceful per-sat
+  failure), §20 (prefer known/reference values).
+
+**Details**
+
+* Verified: `deno task typecheck` ✓, `deno task build` ✓ (clean 27.6 kB bundle,
+  no WASM), `deno task test` (22/22) ✓, and the dev server serves the app and
+  proxy returns all 12 satellites cleanly (no port conflicts).
+* The satellite.js root entry's WASM worker fails Vite's build
+  ("Top-level await not supported with the 'iife' output format") and bloats
+  the bundle ~309 kB; the shim sidesteps both by importing only the pure-JS
+  SGP4 path.
+
+**Next**
+
+* Phase 5 — Observer-relative position: ECI → ECEF → topocentric using the
+  observer, yielding altitude/azimuth/distance, with reference-value tests.
+
+---
 
 ### 2026-08-28 — Phase 3: Satellite data
 
@@ -65,8 +117,8 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 **Next**
 
-* Phase 4 — Propagation: integrate `satellite.js` SGP4; use `Satellite.elements`
-  via `json2satrec` to compute positions for the current time.
+* Phase 4 (Propagation) and Phase 5 (Observer-relative) — Phase 4 done; Phase 5
+  converts the current ECI position into altitude/azimuth/distance.
 
 ---
 

@@ -1,4 +1,4 @@
-import type { SatelliteDataState } from "../app/state.ts";
+import type { SatelliteDataState, PropagationState } from "../app/state.ts";
 import type { LocationStatusState } from "./LocationStatus.ts";
 import { renderLocationStatus } from "./LocationStatus.ts";
 import { renderSatelliteList } from "./SatelliteList.ts";
@@ -8,6 +8,8 @@ export interface DashboardProps {
   location: LocationStatusState;
   /** The fetched satellite data state. */
   satellites: SatelliteDataState;
+  /** The computed SGP4 positions for the loaded satellites. */
+  positions: PropagationState;
   /** Invoked when the user asks to retry loading satellite data. */
   onRetrySatellites: () => void;
 }
@@ -39,6 +41,7 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
   const list = document.createElement("div");
   renderSatelliteList(list, {
     state: props.satellites,
+    positions: props.positions,
     onRetry: props.onRetrySatellites,
   });
 

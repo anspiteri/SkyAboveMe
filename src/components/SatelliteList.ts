@@ -1,4 +1,6 @@
 import type { Satellite } from "../domain/satellite.ts";
+import type { PropagationState } from "../app/state.ts";
+import type { PropagateResult } from "../services/satellite-propagation.ts";
 
 export type SatelliteListState =
   | { kind: "loading" }
@@ -7,12 +9,15 @@ export type SatelliteListState =
 
 export interface SatelliteListProps {
   state: SatelliteListState;
+  /** The computed SGP4 positions; `idle` before the loaded satellites propagate. */
+  positions: PropagationState;
   onRetry: () => void;
 }
 
 /**
- * Shows the fetched satellites. Phase 3 renders names/counts only; per-satellite
- * positions and ranking are added in later phases.
+ * Shows the fetched satellites and, once propagated, each satellite's current
+ * ECI position. Altitude/azimuth ranking replaces the raw coordinates in later
+ * phases.
  */
 export function renderSatelliteList(
   root: HTMLElement,
@@ -69,11 +74,10 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       const ul = document.createElement("ul");
       ul.className = "satellite-list__items";
 
+      const positionsByNorad = positionsById(props.positions);
+
       for (const satellite of state.satellites) {
-        const li = document.createElement("li");
-        li.className = "satellite-list__item";
-        li.textContent = satellite.label;
-        ul.append(li);
+        ul.append(renderItem(satellite, positionsByNorad));
       }
 
       const wrap = document.createElement("div");
@@ -81,4 +85,44 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       return wrap;
     }
   }
+}
+
+/** Index successful/skipped propagation results by NORAD catalogue number. */
+function positionsById(state: PropagationState): Map<number, PropagateResult> {
+  const byId = new Map<number, PropagateResult>();
+  if (state.kind === "ready") {
+    for (const result of state.results) {
+      byId.set(
+        result.status === "ok" ? result.position.noradId : result.noradId,
+        result,
+      );
+    }
+  }
+  return byId;
+}
+
+/** Render one satellite row: label plus its current ECI position when known. */
+function renderItem(
+  satellite: Satellite,
+  positions: Map<number, PropagateResult>,
+): HTMLLIElement {
+  const li = document.createElement("li");
+  li.className = "satellite-list__item";
+
+  const name = document.createElement("span");
+  name.className = "satellite-list__name";
+  name.textContent = satellite.label;
+
+  li.append(name);
+
+  const result = positions.get(satellite.noradId);
+  if (result && result.status === "ok") {
+    const p = result.position.position;
+    const coord = document.createElement("span");
+    coord.className = "satellite-list__position";
+    coord.textContent = `(${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}) km`;
+    li.append(coord);
+  }
+
+  return li;
 }

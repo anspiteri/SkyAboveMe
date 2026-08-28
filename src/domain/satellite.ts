@@ -44,3 +44,28 @@ export interface Satellite {
   /** Orbital elements used for propagation. */
   elements: SatelliteElements;
 }
+
+/** A vector in an Earth-centred inertial (ECI) frame, kilometres. */
+export interface EciVector {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * A satellite's propagated state at a single instant.
+ *
+ * `position` and `velocity` are TEME-ECI (an Earth-centred inertial frame tied
+ * to the true equator and mean equinox of date). They are the raw SGP4 output;
+ * later phases convert them to observer-relative altitude/azimuth/distance.
+ */
+export interface SatellitePosition {
+  /** NORAD catalogue number tying this back to a {@link Satellite}. */
+  noradId: number;
+  /** The instant the state was propagated for (UTC). */
+  timestamp: Date;
+  /** Inertial position, kilometres. */
+  position: EciVector;
+  /** Inertial velocity, kilometres per second. */
+  velocity: EciVector;
+}
