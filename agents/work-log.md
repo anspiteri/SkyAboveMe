@@ -17,8 +17,8 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 > **Status:** Phases 4–8 done + Style Phase 1 foundation + **VISIBLE TONIGHT
 > feature done** + **offline dev fixture added** + **Vercel deployment config
-> added (frontend build via a minimal `package.json`, API function on the Deno
-> community runtime).** The app propagates satellites (SGP4), converts to
+> added + first-deploy build failure found & fixed locally.** The app propagates
+> satellites (SGP4), converts to
 > azimuth/elevation/range against the observer, and now predicts the coming
 > night: **VISIBLE TONIGHT** replaces "Visible now" as the second view. It
 > computes (via pure NOAA sunrise/sunset) the sunset→next-sunrise window, then
@@ -32,17 +32,84 @@ next steps so the next agent can pick up without re-reading the whole repo.
 > `dev`/prod untouched). **Deployment:** a `package.json` + committed
 > `package-lock.json` let Vercel's native npm install+build produce a `dist/`
 > verified byte-identical to `deno task build` (both hash `index-BDSTd0_7.js`);
-> the `/api` function runs on `vercel-deno@3.2.0`. **Next:** import
-> `anspiteri/SkyAboveMe` (branch `main`) into Vercel with Build command
-> `npm run build` / Output dir `dist`; then return to the deeper
-> Information-language + identity styling passes (STYLE-GUIDE §38 Phases 2–3);
-> retry the live `tests/api` integration test once CelesTrak returns.
+> the `/api` function runs on `vercel-deno@3.2.0`. **First deploy failed in the
+> Deno function step** (the frontend `vite build` succeeded): the community
+> runtime bundles **Deno v1.44.4**, which rejects our root `deno.json`
+> `"nodeModulesDir": "auto"` (`invalid type: string "auto"`). **Fixed locally:**
+> moved `curated-catalog.ts` out of `api/` into `src/data/` (it had no default
+> handler and was being built as a function) and added a `--no-config` shebang
+> to `api/satellites.ts` so the old runtime skips the incompatible root config.
+> Verified with a fresh Deno v1.44.4 that both the `deno run` and `deno info
+> --json` build steps now pass (and the negative control reproduces the exact
+> Vercel error). **Next:** commit & push this fix (re-deploy on Vercel);
+> then return to the deeper Information-language + identity styling passes
+> (STYLE-GUIDE §38 Phases 2–3); retry the live `tests/api` integration test once
+> CelesTrak returns.
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Fix first-deploy Deno function build failure (curated-catalog + deno.json)
+
+**What**
+
+* `git mv api/curated-catalog.ts src/data/curated-catalog.ts` — the curated
+  catalog is a pure data module (no `export default` handler); it was being
+  built as a serverless function because it lived in `api/`.
+* `api/satellites.ts` — updated import to `../src/data/curated-catalog.ts` and
+  added the shebang `#!/usr/bin/env deno run --no-config` as the first line.
+* `scripts/dev-fixtures.ts` — updated import to `../src/data/curated-catalog.ts`
+  (+ doc comment).
+* `vercel.json` — unchanged (glob `api/**/*.[jt]s` now matches only
+  `api/satellites.ts`).
+
+**Why**
+
+* Vercel's first deploy got past the frontend `vite build` (identical
+  `dist/`) but failed in the **Deno function** step:
+  `deno run --allow-all api/curated-catalog.ts` →
+  `error: invalid type: string "auto", expected a boolean`.
+* Two root causes, both confirmed from `vercel-deno@3.2.0` source
+  (`DEFAULT_DENO_VERSION = 'v1.44.4'`) and local reproductions:
+  1. **Bug A** — `curated-catalog.ts` in `api/` was treated as a serverless
+     function (the glob enumerated it). Moved it to `src/data/` (matches the
+     existing `src/data/cities.ts` convention).
+  2. **Bug B** — the community runtime bundles an **old Deno v1.44.4**, which
+     parses the root `deno.json` and rejects our Deno-2-only
+     `"nodeModulesDir": "auto"` (v1.44 expects a boolean). The function's whole
+     import chain uses only relative imports (no `npm:`/`jsr:`, no import map),
+     so it needs none of the root config — hence the `--no-config` shebang.
+* Chose `--no-config` over pinning `--version v2.9.5` in the shebang: the
+  vercel-deno runtime wrapper + bootstrap are tested against Deno 1.x; forcing
+  Deno 2.x risks runtime incompatibility. `--no-config` keeps the tested
+  default version and makes the function build ignore the root config.
+
+**Verified**
+
+* `deno check src api` ✓; `deno check scripts` ✓; `deno task build` ✓ (byte
+  identical `dist/`, same `index-BDSTd0_7.js` hash — untouched by these fixes);
+  `deno task test` → **74 passed / 1 failed** (only the live CelesTrak outage
+  test, pre-existing).
+* **Simulated the exact vercel-deno build with a fresh Deno v1.44.4:**
+  - `deno run --allow-all --no-config api/satellites.ts` → exit 0 (was: the
+    `nodeModulesDir` error).
+  - `deno info --json --no-config api/satellites.ts` → traces the 4-module graph
+    (satellites/curated-catalog/parse-omm/satellite) — the builder's
+    `traceDenoInfo` step passes.
+  - Negative control: v1.44.4 **without** `--no-config` reproduces the exact
+    Vercel error, proving `--no-config` is what fixes it.
+
+**Next**
+
+* Commit & push → Vercel re-deploys from `main`. Import settings unchanged:
+  Framework "Other", Build `npm run build`, Output dir `dist`. `/api/satellites`
+  should now build on `vercel-deno@3.2.0` (still returns empty while CelesTrak
+  is down — not a build-blocker).
+* Retry live `tests/api` once CelesTrak returns.
+* Resume styling passes (STYLE-GUIDE §38 Phases 2–3).
 
 ### 2026-08-28 — Vercel deployment config (frontend build + Deno function runtime)
 

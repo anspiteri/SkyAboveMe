@@ -12,10 +12,10 @@
  * orbital elements are realistic but frozen historical examples — fine for
  * building/testing the UI, never a substitute for real CelesTrak data in
  * production. The curated label/description metadata is reused from
- * `api/curated-catalog.ts` so the mock looks and behaves like the real app.
+ * `src/data/curated-catalog.ts` so the mock looks and behaves like the real app.
  */
 
-import { CURATED_CATALOG } from "../api/curated-catalog.ts";
+import { CURATED_CATALOG } from "../src/data/curated-catalog.ts";
 import type { Satellite } from "../src/domain/satellite.ts";
 
 /** A shared, plausible epoch so all fixtures propagate sensibly. */
