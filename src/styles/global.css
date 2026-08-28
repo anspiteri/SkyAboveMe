@@ -39,3 +39,67 @@ body {
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
+
+/* Location status banner */
+.dashboard__status {
+  margin-bottom: var(--space-5);
+}
+
+.location-status {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.location-status__icon {
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-top: 0.3rem;
+  border-radius: var(--radius-full);
+  background: var(--color-text-subtle);
+}
+
+.location-status[data-state="acquiring"] .location-status__icon {
+  background: var(--color-warning);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.location-status[data-state="acquired"] .location-status__icon {
+  background: var(--color-success);
+}
+
+.location-status[data-state="error"] .location-status__icon {
+  background: var(--color-danger);
+}
+
+.location-status__title {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.location-status__body {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .location-status[data-state="acquiring"] .location-status__icon {
+    animation: none;
+  }
+}
