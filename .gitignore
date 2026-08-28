@@ -1,6 +1,5 @@
 # Project agents/instructions are kept out of version control
 AGENTS.md
-agents/*
 
 # Logs
 logs
