@@ -1,5 +1,10 @@
 import { assertEquals, assertAlmostEquals, assert } from "jsr:@std/assert";
-import { computeObserverRelativePositions } from "../../src/services/observer-relative.ts";
+import {
+  computeObserverRelativePositions,
+  filterAboveHorizon,
+  type ObserverRelativeResult,
+} from "../../src/services/observer-relative.ts";
+import { isAboveHorizon } from "../../src/domain/visibility.ts";
 import type { Observer } from "../../src/domain/observer.ts";
 import type { SatellitePosition } from "../../src/domain/satellite.ts";
 
@@ -66,4 +71,58 @@ Deno.test("computeObserverRelativePositions: work for two satellites", () => {
   assertEquals(results[0]?.noradId, 25544);
   assertEquals(results[1]?.noradId, 48274);
   assertAlmostEquals(results[1]?.status === "ok" ? 1 : 0, 1);
+});
+
+Deno.test("isAboveHorizon: true only when elevation is strictly positive", () => {
+  assertEquals(isAboveHorizon(0.1), true);
+  assertEquals(isAboveHorizon(89.9), true);
+  // Exactly at the horizon is not yet "above".
+  assertEquals(isAboveHorizon(0), false);
+  // Below the horizon.
+  assertEquals(isAboveHorizon(-0.1), false);
+  assertEquals(isAboveHorizon(-45), false);
+  // The zenith is well above the horizon.
+  assertEquals(isAboveHorizon(90), true);
+});
+
+Deno.test("filterAboveHorizon: keeps only ok satellites above the horizon", () => {
+  const above: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 1,
+    position: { elevationDeg: 45, azimuthDeg: 90, rangeKm: 800 },
+  };
+  const atHorizon: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 2,
+    position: { elevationDeg: 0, azimuthDeg: 180, rangeKm: 1500 },
+  };
+  const below: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 3,
+    position: { elevationDeg: -12, azimuthDeg: 270, rangeKm: 2200 },
+  };
+  const skip: ObserverRelativeResult = {
+    status: "skip",
+    noradId: 4,
+    reason: "decayed",
+  };
+
+  const filtered = filterAboveHorizon([above, atHorizon, below, skip]);
+  assertEquals(filtered.length, 1);
+  assertEquals(filtered[0]?.noradId, 1);
+});
+
+Deno.test("filterAboveHorizon: preserves input order and handles empty input", () => {
+  const a: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 10,
+    position: { elevationDeg: 30, azimuthDeg: 0, rangeKm: 900 },
+  };
+  const b: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 11,
+    position: { elevationDeg: 5, azimuthDeg: 120, rangeKm: 1100 },
+  };
+  assertEquals(filterAboveHorizon([a, b]).map((r) => r.noradId), [10, 11]);
+  assertEquals(filterAboveHorizon([]).length, 0);
 });

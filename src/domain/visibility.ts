@@ -20,3 +20,13 @@ export interface ObserverRelativePosition {
   /** Straight-line distance from the observer to the satellite, kilometres. */
   rangeKm: number;
 }
+
+/**
+ * A satellite is visible from the ground once it crosses above the horizon.
+ * Exactly at the horizon (0°) is treated as not (yet) above so a pass only
+ * counts once it rises clear of the geometric horizon.
+ */
+export function isAboveHorizon(elevationDeg: number): boolean {
+  return elevationDeg > 0;
+}
+

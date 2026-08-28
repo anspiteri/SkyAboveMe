@@ -68,6 +68,14 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       return wrap;
     }
     case "loaded": {
+      // Once the observer-relative results are ready they are the filtered,
+      // above-horizon set: render exactly those in their computed order.
+      if (props.visibility.kind === "ready") {
+        return visibilityBody(props.visibility.results, state.satellites);
+      }
+
+      // Until then, fall back to the raw propagated ECI positions for all
+      // satellites while the observer location resolves.
       const count = document.createElement("p");
       count.className = "satellite-list__count";
       count.textContent =
@@ -79,12 +87,9 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       ul.className = "satellite-list__items";
 
       const positionsByNorad = positionsById(props.positions);
-      const visibilityByNorad = visibilityById(props.visibility);
 
       for (const satellite of state.satellites) {
-        ul.append(
-          renderItem(satellite, positionsByNorad, visibilityByNorad),
-        );
+        ul.append(renderEciItem(satellite, positionsByNorad));
       }
 
       const wrap = document.createElement("div");
@@ -92,6 +97,50 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       return wrap;
     }
   }
+}
+
+/**
+ * Render the filtered, above-horizon satellite list. Each result has
+ * azimuth/elevation/range; if nothing is currently above the horizon an honest
+ * empty state is shown rather than fabricated data.
+ */
+function visibilityBody(
+  results: ObserverRelativeResult[],
+  satellites: Satellite[],
+): HTMLDivElement {
+  const wrap = document.createElement("div");
+
+  if (results.length === 0) {
+    const p = document.createElement("p");
+    p.className = "satellite-list__notice";
+    p.textContent = "Nothing above the horizon right now.";
+    wrap.append(p);
+    return wrap;
+  }
+
+  const count = document.createElement("p");
+  count.className = "satellite-list__count";
+  count.textContent =
+    results.length === 1
+      ? "1 satellite above the horizon"
+      : `${results.length} satellites above the horizon`;
+
+  const satellitesById = new Map<number, Satellite>();
+  for (const satellite of satellites) {
+    satellitesById.set(satellite.noradId, satellite);
+  }
+
+  const ul = document.createElement("ul");
+  ul.className = "satellite-list__items";
+
+  for (const result of results) {
+    if (result.status !== "ok") continue;
+    const satellite = satellitesById.get(result.noradId);
+    ul.append(renderVisibilityItem(satellite?.label ?? `#${result.noradId}`, result));
+  }
+
+  wrap.append(count, ul);
+  return wrap;
 }
 
 /** Index successful/skipped propagation results by NORAD catalogue number. */
@@ -108,28 +157,10 @@ function positionsById(state: PropagationState): Map<number, PropagateResult> {
   return byId;
 }
 
-/** Index observer-relative results by NORAD catalogue number. */
-function visibilityById(
-  state: VisibilityState,
-): Map<number, ObserverRelativeResult> {
-  const byId = new Map<number, ObserverRelativeResult>();
-  if (state.kind === "ready") {
-    for (const result of state.results) {
-      byId.set(result.noradId, result);
-    }
-  }
-  return byId;
-}
-
-/**
- * Render one satellite row: its label plus its position. When observer-relative
- * results are available show azimuth/elevation/range; otherwise fall back to
- * the propagated ECI position.
- */
-function renderItem(
+/** Render one ECI-fallback satellite row: label plus current ECI position. */
+function renderEciItem(
   satellite: Satellite,
   positions: Map<number, PropagateResult>,
-  visibility: Map<number, ObserverRelativeResult>,
 ): HTMLLIElement {
   const li = document.createElement("li");
   li.className = "satellite-list__item";
@@ -140,18 +171,6 @@ function renderItem(
 
   li.append(name);
 
-  const observed = visibility.get(satellite.noradId);
-  if (observed && observed.status === "ok") {
-    const p = observed.position;
-    const coord = document.createElement("span");
-    coord.className = "satellite-list__position";
-    coord.textContent =
-      `${formatAzimuth(p.azimuthDeg)} · ${formatElevation(p.elevationDeg)} · ` +
-      `${p.rangeKm.toFixed(0)} km`;
-    li.append(coord);
-    return li;
-  }
-
   const result = positions.get(satellite.noradId);
   if (result && result.status === "ok") {
     const p = result.position.position;
@@ -161,6 +180,29 @@ function renderItem(
     li.append(coord);
   }
 
+  return li;
+}
+
+/** Render one above-horizon satellite row with az/elevation/range. */
+function renderVisibilityItem(
+  label: string,
+  result: Extract<ObserverRelativeResult, { status: "ok" }>,
+): HTMLLIElement {
+  const li = document.createElement("li");
+  li.className = "satellite-list__item";
+
+  const name = document.createElement("span");
+  name.className = "satellite-list__name";
+  name.textContent = label;
+
+  const p = result.position;
+  const coord = document.createElement("span");
+  coord.className = "satellite-list__position";
+  coord.textContent =
+    `${formatAzimuth(p.azimuthDeg)} · ${formatElevation(p.elevationDeg)} · ` +
+    `${p.rangeKm.toFixed(0)} km`;
+
+  li.append(name, coord);
   return li;
 }
 

@@ -15,10 +15,10 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phase 4 (Propagation) and Phase 5 (Observer-relative position) done —
-> satellites are propagated with SGP4 then converted to azimuth/elevation/range
-> against the observer. Dashboard shows each satellite's az/el/range. Next up:
-> Phase 6 (Horizon filtering → altitude > 0°).
+> **Status:** Phases 4, 5 and 6 done. Satellites are propagated (SGP4), converted
+> to azimuth/elevation/range against the observer, and the dashboard now shows
+> **only what is above the horizon** (elevation > 0°), with an honest empty
+> state. Next up: Phase 7 (Ranking / "interestingness" order).
 >
 > **Today's date:** 2026-08-28
 
@@ -26,7 +26,52 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Entries (newest first)
 
-### 2026-08-28 — Phase 5: Observer-relative position
+### 2026-08-28 — Phase 6: Horizon filtering
+
+**What**
+
+* `src/domain/visibility.ts` — added pure `isAboveHorizon(elevationDeg)`
+  (true iff elevation strictly > 0; exactly on the horizon counts as not above).
+* `src/services/observer-relative.ts` — added `filterAboveHorizon(results)`
+  keeping only `ok` results whose elevation is above the horizon.
+* `src/app/app.ts` — `computeVisibility()` now stores the filtered,
+  above-horizon results in `VisibilityState`.
+* `src/components/SatelliteList.ts` — when `VisibilityState` is ready the list
+  renders exactly the above-horizon results in computed order, with a count
+  ("N satellites above the horizon") and an honest empty state ("Nothing above
+  the horizon right now."). Until it is ready it falls back to the raw ECI
+  position view.
+
+**Why**
+
+* AGENTS.md §25 Phase 6 — only display satellites with altitude > 0°.
+* Filtering lives at the service/app layer (pure predicate in domain), keeping
+  `isAboveHorizon` independently testable (§16: horizon boundary / negative /
+  zenith). The UI no longer hides data it has: nothing is shown below the
+  horizon at all.
+
+**Tests (3 new; 40 total, 39 pass)**
+
+* `isAboveHorizon` boundary set (positive/zero/negative/zenith).
+* `filterAboveHorizon` keeps only ok-and-above (drops at-horizon, below, skip).
+* `filterAboveHorizon` preserves order and handles empty input.
+* NOTE: the live `tests/api/satellites_test.ts` integration test fails in this
+  session because **CelesTrak is unreachable** (direct curl → HTTP 000/timeout).
+  All satellites time out, the handler returns HTTP 200 with an empty array
+  (per-satellite skip-and-degrade, §17), and the test's "at least one
+  satellite" assertion then fails. This is an external outage, not a Phase 6
+  regression — Phase 6 touched no API code. Re-run `deno task test` once
+  CelesTrak is back; the API test skips/fails only on live connectivity.
+
+Verification: typecheck ✓, build ✓ (30.60 kB JS / 13.67 gzip), dev smoke (app
+shell 200, `/api/satellites` route 200 → empty list during the outage), 39/40
+tests green, processes cleaned.
+
+**Next**
+
+* Phase 7 — Ranking: a transparent "interestingness" score to order the list.
+
+---
 
 **What**
 
@@ -72,7 +117,7 @@ Verification: `deno task typecheck` ✓, `deno task build` ✓ (29.77 kB JS / 13
 
 **Next**
 
-* Phase 6 — Horizon filtering: only display satellites with altitude > 0°.
+* Phase 7 — Ranking: a transparent "interestingness" score to order the list.
 
 ---
 
@@ -121,8 +166,7 @@ Verification: `deno task typecheck` ✓, `deno task build` ✓ (29.77 kB JS / 13
 
 **Next**
 
-* Phase 6 — Horizon filtering: only display satellites above the horizon
-  (altitude > 0°).
+* Phase 7 — Ranking: a transparent "interestingness" score to order the list.
 
 ---
 
@@ -166,8 +210,8 @@ Verification: `deno task typecheck` ✓, `deno task build` ✓ (29.77 kB JS / 13
 
 **Next**
 
-* Phase 4 (Propagation) and Phase 5 (Observer-relative) — both done; Phase 6
-  filters by horizon and Phase 7 introduces the ranking layer.
+* Phases 4–6 (Propagation / Observer-relative / Horizon filtering) — all done;
+  Phase 7 introduces the ranking layer, in progress/next.
 
 ---
 

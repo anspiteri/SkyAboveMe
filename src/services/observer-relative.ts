@@ -9,7 +9,10 @@
 
 import type { Observer } from "../domain/observer.ts";
 import type { SatellitePosition } from "../domain/satellite.ts";
-import type { ObserverRelativePosition } from "../domain/visibility.ts";
+import {
+  isAboveHorizon,
+  type ObserverRelativePosition,
+} from "../domain/visibility.ts";
 import { getObserverPosition } from "../astronomy/observer.ts";
 import {
   calculateTopocentricPosition,
@@ -55,4 +58,17 @@ export function computeObserverRelativePositions(
   }
 
   return results;
+}
+
+/**
+ * Keep only the results for satellites currently above the observer's horizon
+ * (elevation > 0°), dropping both below-horizon satellites and skips. This is
+ * the Phase 6 filtering step: the dashboard shows only what is visible now.
+ */
+export function filterAboveHorizon(
+  results: ObserverRelativeResult[],
+): ObserverRelativeResult[] {
+  return results.filter(
+    (r) => r.status === "ok" && isAboveHorizon(r.position.elevationDeg),
+  );
 }
