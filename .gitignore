@@ -1,6 +1,7 @@
 # Project agents/instructions are kept out of version control
 AGENTS.md
 agents/v2.md
+agents/STYLE-GUIDE.md
 
 # Logs
 logs
