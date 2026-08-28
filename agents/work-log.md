@@ -15,13 +15,54 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Skeleton (Phase 1) is committed. Next up: Phase 2 (Geolocation).
+> **Status:** Phase 2 (Geolocation) done. Next up: Phase 3 (Satellite data —
+> Vercel serverless proxy + client fetch service).
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Phase 2: Geolocation
+
+**What**
+
+* `src/domain/observer.ts` — pure `Observer` type (geodetic lat/lon in degrees,
+  heightKm, capturedAt, accuracyM). No DOM.
+* `src/services/geolocation.ts` — `getCurrentLocation()` (single, low-accuracy
+  position) and `isGeolocationSupported()`; normalises every browser failure to
+  a `LocationError` union (`unsupported | permission-denied |
+  position-unavailable | timeout | unknown`). Never logs/transmits coordinates.
+* `src/app/state.ts` — minimal `AppState` holding a `LocationStatusState`.
+* `src/components/LocationStatus.ts` — status banner with distinct
+  acquiring/acquired/error states and a coarse (1-decimal) location label.
+* `src/components/Dashboard.ts` — renders the location status below the header.
+* `src/app/app.ts` — requests location once on boot, updates state and
+  re-renders on result.
+* CSS for the status banner (icon + pulse animation, reduced-motion aware).
+* `deno.json` — added `compilerOptions` (strict + `lib` incl. `deno.ns`/`DOM`)
+  so both `deno check src` and `deno test` share a consistent type environment.
+* `tests/services/geolocation_test.ts` — stubs `navigator.geolocation` to cover
+  supported/unsupported, success->Observer mapping, and error-code mapping.
+
+**Why**
+
+* AGENTS.md §12 (geolocation), §16 (error handling), §18/§19 (privacy).
+* Single position (no continuous watch) per §12.
+
+**Details**
+
+* Verified: `deno check src` passes, `deno task build` passes, all 4
+  geolocation tests pass.
+* Privacy model holds: precise coordinates stay in-browser; UI shows only a
+  coarse label and error states.
+
+**Next**
+
+* Phase 3 — Satellite data: build Vercel serverless proxy `api/satellites.ts`
+  fetching `CURATED_NORAD_IDS` from CelesTrak (OMM JSON) server-side to avoid
+  CORS; add client fetch service + domain mapping.
 
 ### 2026-08-28 — Step 1: Curated satellite catalog
 
@@ -81,8 +122,7 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 **Next**
 
-* Phase 2 — Geolocation: implement `src/services/geolocation.ts`, add
-  `LocationStatus` component, wire accepted/denied/unavailable/timeout states.
+* Phase 2 (Geolocation) — done, see the entry above.
 * Phase 3 — Satellite data: build Vercel serverless proxy `api/satellites.ts`
   that fetches `CURATED_NORAD_IDS` from CelesTrak (OMM JSON) server-side to
   avoid CORS; add client fetch service.

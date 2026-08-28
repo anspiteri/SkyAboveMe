@@ -1,6 +1,9 @@
+import type { LocationStatusState } from "./LocationStatus.ts";
+import { renderLocationStatus } from "./LocationStatus.ts";
+
 export interface DashboardProps {
-  /** The user's current location, or null until geolocation resolves. */
-  locationLabel: string | null;
+  /** The current location-acquisition status. */
+  location: LocationStatusState;
 }
 
 /** The single scrollable dashboard shell. */
@@ -19,12 +22,14 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
 
   const subtitle = document.createElement("p");
   subtitle.className = "dashboard__subtitle";
-  subtitle.textContent =
-    props.locationLabel === null
-      ? "Finding your location…"
-      : `Above ${props.locationLabel}`;
+  subtitle.textContent = "What's above you right now?";
 
   header.append(title, subtitle);
-  container.append(header);
+
+  const status = document.createElement("div");
+  status.className = "dashboard__status";
+  renderLocationStatus(status, { location: props.location });
+
+  container.append(header, status);
   root.append(container);
 }
