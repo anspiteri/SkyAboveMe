@@ -4,7 +4,7 @@ import { createInitialState } from "./state.ts";
 import { getCurrentLocation } from "../services/geolocation.ts";
 import { fetchSatelliteData } from "../services/satellite-data.ts";
 import { propagateSatellites } from "../services/satellite-propagation.ts";
-import { computeObserverRelativePositions } from "../services/observer-relative.ts";
+import { computeObserverRelativePositions, filterAboveHorizon } from "../services/observer-relative.ts";
 
 /**
  * Boot the application into the given mount element.
@@ -72,12 +72,13 @@ export function bootApp(app: HTMLElement): void {
       .map((r) => r.position);
 
     const now = new Date();
+    const all = computeObserverRelativePositions(
+      state.location.observer,
+      okPositions,
+    );
     state.observerRelative = {
       kind: "ready",
-      results: computeObserverRelativePositions(
-        state.location.observer,
-        okPositions,
-      ),
+      results: filterAboveHorizon(all),
       computedAt: now.getTime(),
     };
   }
