@@ -24,16 +24,44 @@ next steps so the next agent can pick up without re-reading the whole repo.
 > (rise/interpolated set/culmination + peak elevation + azimuth), derives a best
 > observing window (densest span of concurrent activity) and a chronological
 > next-events list, and shows a live right-now snapshot. No fabricated
-> metrics — all numbers are computed. **Next:** deeper Information-language +
-> identity styling passes (STYLE-GUIDE §38 Phases 2–3) now that the feature
-> shape is known; retry the live `tests/api` integration test once CelesTrak
-> returns.
+> metrics — all numbers are computed. **Offline dev fixture added:** run
+> `deno task dev:mock` to view the app with static satellites while CelesTrak is
+> down (serves realistic-but-frozen elements over `/api/satellites`; normal
+> `dev`/prod untouched). **Next:** deeper Information-language + identity
+> styling passes (STYLE-GUIDE §38 Phases 2–3) now that the feature shape is
+> known; retry the live `tests/api` integration test once CelesTrak returns.
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Offline dev fixture: view the app during a CelesTrak outage
+
+**What**
+
+* `scripts/dev-fixtures.ts` (new) — 12 curated `Satellite` fixtures with
+  realistic-but-frozen orbital elements, reusing `api/curated-catalog.ts`
+  labels/descriptions. Same wire shape the browser validator accepts; all
+  12 build SGP4-usable `SatRec`s.
+* `scripts/dev-api-mock.ts` (new) — dev proxy serving the fixtures over the same
+  `/api/satellites` endpoint (404 on other paths / non-GET).
+* `deno.json` — `dev:mock` task (runs `dev:api:mock` + `dev:vite`).
+* `tests/dev-fixtures_test.ts` — fixture invariants: unique NORAD IDs, wire
+  shape, SGP4-usability, JSON round-trip.
+
+**Why**
+
+* CelesTrak outage makes the live proxy return nothing, so the app shows only
+  outage banners and is hard to develop against. A separate `dev:mock` task
+  (user's choice) lets the app render a full sky offline without changing
+  browser code or production paths.
+
+**Next**
+
+* Deeper styling passes (STYLE-GUIDE §38 Phases 2–3).
+* Retry `tests/api` live test once CelesTrak is back.
 
 ### 2026-08-28 — VISIBLE TONIGHT feature: pass prediction for the coming night
 
