@@ -24,6 +24,8 @@ export interface SatelliteListProps {
   visibility: VisibilityState;
   /** Which satellite view ("All tracked" or "Visible now") is active. */
   view: SatelliteView;
+  /** Whether the user has provided a location. */
+  hasLocation: boolean;
   /** The satellite (if any) whose detail panel is expanded. */
   selection: SelectedSatellite;
   onRetry: () => void;
@@ -179,7 +181,11 @@ function renderVisibleView(
   const wrap = document.createElement("div");
 
   if (props.visibility.kind !== "ready") {
-    wrap.append(notice("Calculating what's visible right now…"));
+    if (!props.hasLocation) {
+      wrap.append(notice("No location set — set a location at the top to see what's above you."));
+    } else {
+      wrap.append(notice("Calculating what's visible right now…"));
+    }
     return wrap;
   }
 

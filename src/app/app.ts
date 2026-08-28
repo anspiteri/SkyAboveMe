@@ -1,7 +1,11 @@
 import { renderDashboard } from "../components/Dashboard.ts";
-import type { AppState, SatelliteView } from "./state.ts";
+import type {
+  AppState,
+  SatelliteView,
+} from "./state.ts";
 import { createInitialState } from "./state.ts";
-import { getCurrentLocation } from "../services/geolocation.ts";
+import type { PermissionState } from "../components/LocationStatus.ts";
+import { getCurrentLocation, queryGeolocationPermission } from "../services/geolocation.ts";
 import { fetchSatelliteData, type SatelliteDataError } from "../services/satellite-data.ts";
 import { propagateSatellites } from "../services/satellite-propagation.ts";
 import {
@@ -9,22 +13,33 @@ import {
   filterAboveHorizon,
   rankByVisibility,
 } from "../services/observer-relative.ts";
+import { resolveManualLocation, type ManualLocationInput } from "../domain/location.ts";
 
 /**
  * Boot the application into the given mount element.
  *
- * Requests the browser geolocation once, fetches the curated satellite data,
- * then propagates the satellites to the current instant with SGP4, re-rendering
- * the dashboard as each stage resolves. The precise position stays in the
- * browser; only a status is rendered. Failures degrade gracefully (retry for
- * data, per-satellite skips for propagation).
+ * Location is OPTIONAL and is never requested at boot: the app is fully usable in
+ * the "All tracked" view without it. The user opts in when ready — via the browser
+ * GPS prompt or by entering a (generic) location manually. The precise position is
+ * fetched at most once and kept only in browser memory (AGENTS.md §4, §12, §18).
+ * Satellite data is fetched independently of location.
  */
 export function bootApp(app: HTMLElement): void {
   const state: AppState = createInitialState();
+  // Browser-reported geolocation permission (inspect-only; never triggers a
+  // prompt). Kept here rather than in AppState to avoid churn on every render.
+  let permission: PermissionState = null;
+
+  void queryGeolocationPermission().then((p) => {
+    permission = p;
+    render();
+  });
 
   function render(): void {
     renderDashboard(app, {
       location: state.location,
+      locationEntry: state.locationEntry,
+      permission,
       satellites: state.satellites,
       positions: state.positions,
       visibility: state.observerRelative,
@@ -33,7 +48,61 @@ export function bootApp(app: HTMLElement): void {
       onRetrySatellites: loadSatellites,
       onSelectSatellite: selectSatellite,
       onSetView: setView,
+      onUseGpsLocation: useGpsLocation,
+      onSubmitLocation: submitLocation,
+      onOpenLocationEntry: openLocationEntry,
+      onCloseLocationEntry: closeLocationEntry,
+      onChangeLocation: changeLocation,
     });
+  }
+
+  /** Request the browser's GPS position, but only once per explicit action. */
+  function useGpsLocation(): void {
+    if (state.location.kind === "acquired" || state.location.kind === "acquiring") {
+      return;
+    }
+    state.location = { kind: "acquiring" };
+    render();
+
+    void getCurrentLocation().then((result) => {
+      state.location = result.ok
+        ? { kind: "acquired", observer: result.observer, source: "gps" }
+        : { kind: "error", error: result.error };
+      computeVisibility();
+      render();
+    });
+  }
+
+  /** Set a manual (generic/coarse) location from a city or typed coordinates. */
+  function submitLocation(input: ManualLocationInput): void {
+    if (input.kind === "city" && input.name.trim() === "") return;
+    const observer = resolveManualLocation(input, new Date());
+    if (observer === null) return;
+    state.location = { kind: "acquired", observer, source: "manual" };
+    state.locationEntry = { kind: "closed" };
+    computeVisibility();
+    render();
+  }
+
+  function openLocationEntry(): void {
+    state.locationEntry = { kind: "choosing" };
+    render();
+  }
+
+  function closeLocationEntry(): void {
+    state.locationEntry = { kind: "closed" };
+    render();
+  }
+
+  /**
+   * Clear a previously set location so the user can provide a different one.
+   * Resets the visibility results so the "Visible now" view no longer claims a
+   * position it no longer has.
+   */
+  function changeLocation(): void {
+    state.location = { kind: "idle" };
+    state.observerRelative = { kind: "idle" };
+    render();
   }
 
   async function loadSatellites(): Promise<void> {
@@ -125,14 +194,6 @@ export function bootApp(app: HTMLElement): void {
     state.view = view;
     render();
   }
-
-  void getCurrentLocation().then((result) => {
-    state.location = result.ok
-      ? { kind: "acquired", observer: result.observer }
-      : { kind: "error", error: result.error };
-    computeVisibility();
-    render();
-  });
 
   void loadSatellites();
 }

@@ -14,6 +14,8 @@ import type { ObserverRelativeResult } from "../services/observer-relative.ts";
  */
 export interface AppState {
   location: LocationStatusState;
+  /** Whether the manual "Enter location" form is open. */
+  locationEntry: LocationEntryState;
   satellites: SatelliteDataState;
   positions: PropagationState;
   observerRelative: VisibilityState;
@@ -22,6 +24,11 @@ export interface AppState {
   /** The satellite (if any) whose detail panel is expanded. */
   selection: SelectedSatellite;
 }
+
+/** Whether the manual "Enter location" form is open (closed by default). */
+export type LocationEntryState =
+  | { kind: "closed" }
+  | { kind: "choosing" };
 
 /** The two satellite views the dashboard can show. */
 export type SatelliteView = "all" | "visible";
@@ -58,10 +65,15 @@ export type VisibilityState =
   | { kind: "idle" }
   | { kind: "ready"; results: ObserverRelativeResult[]; computedAt: number };
 
-/** The state the app boots into: requesting location and satellite data. */
+/**
+ * The state the app boots into. Location is NOT requested at boot: the app is
+ * fully usable without it (All-tracked view), and the user opts in when ready
+ * (AGENTS.md §12).
+ */
 export function createInitialState(): AppState {
   return {
-    location: { kind: "acquiring" },
+    location: { kind: "idle" },
+    locationEntry: { kind: "closed" },
     satellites: { kind: "loading" },
     positions: { kind: "idle" },
     observerRelative: { kind: "idle" },

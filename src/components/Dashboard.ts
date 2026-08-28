@@ -4,14 +4,20 @@ import type {
   VisibilityState,
   SatelliteView,
   SelectedSatellite,
+  LocationEntryState,
 } from "../app/state.ts";
-import type { LocationStatusState } from "./LocationStatus.ts";
+import type { LocationStatusState, PermissionState } from "./LocationStatus.ts";
+import type { ManualLocationInput } from "../domain/location.ts";
 import { renderLocationStatus } from "./LocationStatus.ts";
 import { renderSatelliteList } from "./SatelliteList.ts";
 
 export interface DashboardProps {
-  /** The current location-acquisition status. */
+  /** The current location status (optional until the user provides one). */
   location: LocationStatusState;
+  /** Whether the manual "Enter location" form is open. */
+  locationEntry: LocationEntryState;
+  /** Browser-reported geolocation permission, if knowable. */
+  permission: PermissionState;
   /** The fetched satellite data state. */
   satellites: SatelliteDataState;
   /** The computed SGP4 positions for the loaded satellites. */
@@ -28,6 +34,14 @@ export interface DashboardProps {
   onSelectSatellite: (noradId: number | null) => void;
   /** Invoked when the user switches satellite view. */
   onSetView: (view: SatelliteView) => void;
+  /** Use the browser's GPS position (only on explicit user action). */
+  onUseGpsLocation: () => void;
+  /** Set a manual (generic) location from a city or typed coordinates. */
+  onSubmitLocation: (input: ManualLocationInput) => void;
+  onOpenLocationEntry: () => void;
+  onCloseLocationEntry: () => void;
+  /** Clear the current location so a different one can be provided. */
+  onChangeLocation: () => void;
 }
 
 /** The single scrollable dashboard shell. */
@@ -52,7 +66,16 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
 
   const status = document.createElement("div");
   status.className = "dashboard__status";
-  renderLocationStatus(status, { location: props.location });
+  renderLocationStatus(status, {
+    location: props.location,
+    entry: props.locationEntry,
+    permission: props.permission,
+    onUseGps: props.onUseGpsLocation,
+    onSubmitLocation: props.onSubmitLocation,
+    onOpenEntry: props.onOpenLocationEntry,
+    onCloseEntry: props.onCloseLocationEntry,
+    onChangeLocation: props.onChangeLocation,
+  });
 
   const list = document.createElement("div");
   renderSatelliteList(list, {
@@ -64,6 +87,7 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
     selection: props.selection,
     onSelect: props.onSelectSatellite,
     onSetView: props.onSetView,
+    hasLocation: props.location.kind === "acquired",
   });
 
   container.append(header, status, list);

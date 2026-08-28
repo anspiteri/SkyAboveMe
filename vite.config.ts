@@ -14,6 +14,9 @@ const SATELLITE = fileURLToPath(
 export default defineConfig({
   server: {
     port: 5173,
+    headers: {
+      "Permissions-Policy": "geolocation=(self), camera=(), microphone=()",
+    },
     // In development the satellite proxy runs locally (see scripts/dev-api.ts).
     // In production the same endpoints are served by Vercel Functions.
     proxy: {
