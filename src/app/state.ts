@@ -1,16 +1,26 @@
 import type { LocationStatusState } from "../components/LocationStatus.ts";
+import type { Satellite } from "../domain/satellite.ts";
 
 /**
  * Application state for the dashboard.
  *
- * Deliberately tiny for V1. Later phases add satellite data and visibility
- * results alongside `location`.
+ * Deliberately tiny for V1: current location status and the fetched satellite
+ * data. Later phases add visibility results alongside `satellites`.
  */
 export interface AppState {
   location: LocationStatusState;
+  satellites: SatelliteDataState;
 }
 
-/** The state the app boots into: requesting location. */
+export type SatelliteDataState =
+  | { kind: "loading" }
+  | { kind: "loaded"; satellites: Satellite[] }
+  | { kind: "error"; message: string };
+
+/** The state the app boots into: requesting location and satellite data. */
 export function createInitialState(): AppState {
-  return { location: { kind: "acquiring" } };
+  return {
+    location: { kind: "acquiring" },
+    satellites: { kind: "loading" },
+  };
 }

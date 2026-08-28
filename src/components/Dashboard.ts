@@ -1,9 +1,15 @@
+import type { SatelliteDataState } from "../app/state.ts";
 import type { LocationStatusState } from "./LocationStatus.ts";
 import { renderLocationStatus } from "./LocationStatus.ts";
+import { renderSatelliteList } from "./SatelliteList.ts";
 
 export interface DashboardProps {
   /** The current location-acquisition status. */
   location: LocationStatusState;
+  /** The fetched satellite data state. */
+  satellites: SatelliteDataState;
+  /** Invoked when the user asks to retry loading satellite data. */
+  onRetrySatellites: () => void;
 }
 
 /** The single scrollable dashboard shell. */
@@ -30,6 +36,12 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
   status.className = "dashboard__status";
   renderLocationStatus(status, { location: props.location });
 
-  container.append(header, status);
+  const list = document.createElement("div");
+  renderSatelliteList(list, {
+    state: props.satellites,
+    onRetry: props.onRetrySatellites,
+  });
+
+  container.append(header, status, list);
   root.append(container);
 }
