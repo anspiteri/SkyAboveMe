@@ -17,8 +17,8 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 > **Status:** Phases 4–8 done + Style Phase 1 foundation + **VISIBLE TONIGHT
 > feature done** + **offline dev fixture added** + **Vercel deployment config
-> added + first-deploy build failure found & fixed locally.** The app propagates
-> satellites (SGP4), converts to
+> added + first-deploy build failure found & fixed locally (final).** The app
+> propagates satellites (SGP4), converts to
 > azimuth/elevation/range against the observer, and now predicts the coming
 > night: **VISIBLE TONIGHT** replaces "Visible now" as the second view. It
 > computes (via pure NOAA sunrise/sunset) the sunset→next-sunrise window, then
@@ -32,25 +32,81 @@ next steps so the next agent can pick up without re-reading the whole repo.
 > `dev`/prod untouched). **Deployment:** a `package.json` + committed
 > `package-lock.json` let Vercel's native npm install+build produce a `dist/`
 > verified byte-identical to `deno task build` (both hash `index-BDSTd0_7.js`);
-> the `/api` function runs on `vercel-deno@3.2.0`. **First deploy failed in the
-> Deno function step** (the frontend `vite build` succeeded): the community
-> runtime bundles **Deno v1.44.4**, which rejects our root `deno.json`
-> `"nodeModulesDir": "auto"` (`invalid type: string "auto"`). **Fixed locally:**
-> moved `curated-catalog.ts` out of `api/` into `src/data/` (it had no default
-> handler and was being built as a function) and added a `--no-config` shebang
-> to `api/satellites.ts` so the old runtime skips the incompatible root config.
-> Verified with a fresh Deno v1.44.4 that both the `deno run` and `deno info
-> --json` build steps now pass (and the negative control reproduces the exact
-> Vercel error). **Next:** commit & push this fix (re-deploy on Vercel);
-> then return to the deeper Information-language + identity styling passes
-> (STYLE-GUIDE §38 Phases 2–3); retry the live `tests/api` integration test once
-> CelesTrak returns.
+> the `/api` function runs on `vercel-deno@3.2.0`. **Deploy build failure — final
+> fix:** the community runtime bundles **Deno v1.44.4**, which cannot parse our
+> root `deno.json` `"nodeModulesDir": "auto"` (a Deno-2-only value). The second
+> attempt proved the `--no-config` shebang only fixed the builder's `deno run`
+> step, not its `deno info --json` trace step (which never gets `--no-config`),
+> so the config error persisted. **Real fix:** set `"nodeModulesDir": true` (a
+> boolean accepted by BOTH v1.44.4 and 2.9.5) and removed the now-unnecessary
+> `--no-config` shebang. Reproduced the exact builder steps with a fresh Deno
+> v1.44.4 against a lockfile-free clone (Vercel's state — `deno.lock` is
+> gitignored): the `deno run` compile AND both `deno info --json` traces
+> (`api/satellites.ts` + runtime wrapper) now exit 0. **Next:** commit & push
+> (re-deploy on Vercel); then return to the deeper Information-language +
+> identity styling passes (STYLE-GUIDE §38 Phases 2–3); retry the live
+> `tests/api` integration test once CelesTrak returns.
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Final fix: root deno.json compatible with the old build-time Deno v1.44.4
+
+**What**
+
+* `deno.json` — `"nodeModulesDir": "auto"` → `"nodeModulesDir": true`.
+* `api/satellites.ts` — **removed** the `#!/usr/bin/env deno run --no-config`
+  shebang added in the previous entry (now unnecessary).
+
+**Why**
+
+* The second deploy failed again in the same Deno-function step
+  (`error: invalid type: string "auto", expected a boolean` — twice). The
+  `--no-config` shebang only fixed the builder's `deno run` step; the
+  `vercel-deno` builder ALSO calls `deno info --json` in `traceDenoInfo` for
+  both `runtime.ts` and the entrypoint, and that step does **not** receive
+  `--no-config` (confirmed in `vercel-community/deno` `src/deno-lambda.ts`).
+  Since the trace runs with cwd = project root, Deno v1.44.4 still reads the
+  root `deno.json` and rejects `"nodeModulesDir": "auto"`.
+* Root cause: the community runtime bundles Deno **v1.44.4**, which only accepts
+  a boolean for `nodeModulesDir`, while our project used the Deno-2-only
+  `"auto"`. Setting `true` (a boolean valid in **both** 1.44.4 and 2.9.5) makes
+  every build step parse the config — no `--no-config` needed, so that shebang
+  was removed.
+* `deno.lock` (gitignored, not on Vercel's clone) would also trip v1.44.4
+  ("unsupported lockfile version 5"), but it never ships, so it's a
+  non-issue on the platform. The `nodeModulesDir: true` value does emit a
+  benign "deprecated, use `auto`" warning under local Deno 2.9.5 (WARNING only,
+  not an error; every command still exits 0).
+
+**Verified (reproduced the exact builder steps with a fresh Deno v1.44.4 against
+a lockfile-free clone, mirroring Vercel)**
+
+* `deno run --allow-all <runtime.ts>` (v1.44.4) — starts cleanly, no config
+  error (was: immediate `nodeModulesDir` failure).
+* `deno info --json api/satellites.ts` (v1.44.4) — exit 0, traces graph.
+* `deno info --json <runtime.ts>` (v1.44.4) — exit 0, traces graph + npm deps.
+* Local Deno 2.9.5: `deno check src api` ✓, `deno check scripts` ✓,
+  `deno task build` ✓ (identical `dist/`, same `index-BDSTd0_7.js`),
+  `deno task test` → 74 passed / 1 failed (only the live CelesTrak outage
+  test, pre-existing).
+
+**Next**
+
+* Commit & push → Vercel re-deploys from `main` (Build `npm run build`, Output
+  dir `dist`; `/api/satellites` on `vercel-deno@3.2.0`). Should now get past the
+  Deno function build. Still returns empty during the CelesTrak outage — not a
+  build-blocker.
+* Retry live `tests/api` once CelesTrak returns.
+* Resume styling passes (STYLE-GUIDE §38 Phases 2–3).
+* If a future deploy still fails, the alternative is to pin the function's Deno
+  version to our project's via the `--version` shebang (e.g.
+  `deno run --version 2.9.5`), which would let us keep `"nodeModulesDir": "auto"`
+  and drop the deprecation warning — not done now to avoid runtime-wrapper risk
+  under Deno 2.x.
 
 ### 2026-08-28 — Fix first-deploy Deno function build failure (curated-catalog + deno.json)
 
