@@ -2,6 +2,7 @@ import { assert, assertEquals, assertObjectMatch } from "@std/assert";
 import {
   getCurrentLocation,
   isGeolocationSupported,
+  queryGeolocationPermission,
 } from "../../src/services/geolocation.ts";
 
 /**
@@ -14,12 +15,35 @@ const ORIGINAL_GEOLOCATION = Object.getOwnPropertyDescriptor(
   navigator,
   "geolocation",
 );
+const ORIGINAL_PERMISSIONS = Object.getOwnPropertyDescriptor(
+  navigator,
+  "permissions",
+);
 
 function setGeolocation(stub: unknown): void {
   Object.defineProperty(navigator, "geolocation", {
     configurable: true,
     value: stub,
   });
+}
+
+function setPermissions(stub: unknown): void {
+  Object.defineProperty(navigator, "permissions", {
+    configurable: true,
+    value: stub,
+  });
+}
+
+function removePermissions(): void {
+  Reflect.deleteProperty(navigator, "permissions");
+}
+
+function restorePermissions(): void {
+  if (ORIGINAL_PERMISSIONS === undefined) {
+    removePermissions();
+  } else {
+    Object.defineProperty(navigator, "permissions", ORIGINAL_PERMISSIONS);
+  }
 }
 
 function removeGeolocation(): void {
@@ -98,3 +122,36 @@ Deno.test("getCurrentLocation maps geolocation error codes", async () => {
     restoreGeolocation();
   }
 });
+
+Deno.test("queryGeolocationPermission maps the Permissions API state", async () => {
+  const cases: Array<["granted" | "prompt" | "denied", string]> = [
+    ["granted", "granted"],
+    ["prompt", "prompt"],
+    ["denied", "denied"],
+  ];
+
+  for (const [state, expected] of cases) {
+    setPermissions({
+      query: async () => ({ state }),
+    });
+    assertEquals(await queryGeolocationPermission(), expected);
+    restorePermissions();
+  }
+});
+
+Deno.test("queryGeolocationPermission returns null without the Permissions API", async () => {
+  removePermissions();
+  assertEquals(await queryGeolocationPermission(), null);
+  restorePermissions();
+});
+
+Deno.test("queryGeolocationPermission returns null when the query throws", async () => {
+  setPermissions({
+    query: async () => {
+      throw new Error("unsupported");
+    },
+  });
+  assertEquals(await queryGeolocationPermission(), null);
+  restorePermissions();
+});
+

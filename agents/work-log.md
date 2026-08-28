@@ -15,21 +15,73 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phases 4, 5, 6 and 7 done. Satellites are propagated (SGP4),
-> converted to azimuth/elevation/range against the observer, with a clear
-> outage/error info banner (fail-fast: 5s server deadline + 7s client timeout).
-> **Phase 7** adds two views — **All tracked** (full curated catalog, tappable
-> rows with expandable detail) and **Visible now** (above-horizon only, ranked by
-> "most visible / closest right now" i.e. elevation desc → range asc). No
-> "interestingness" heuristic; the detail (description + orbit facts) is what
-> makes each object interesting. Next up: Phase 8 (mobile style/deployment
-> polish).
+> **Status:** Phases 4–8 done. Satellites are propagated (SGP4), converted to
+> azimuth/elevation/range against the observer (fail-fast 5s server + 7s client
+> timeouts, outage/error banner). **Phase 7** adds two views — **All tracked**
+> (tappable rows with expandable detail) and **Visible now** (above-horizon,
+> ranked elevation desc → range asc). **Phase 8** makes **location fully
+> opt-in**: no auto-prompt at boot; the app is usable without it. "Use my
+> location" requests GPS once on explicit action; "Enter location" offers a
+> curated city list or raw lat/lon (generic/coarse). Precise coords stay in
+> browser memory only; Strict Permissions-Policy header set for dev + prod.
+> Next up: deeper mobile/style/deployment polish (see v2.md).
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Phase 8: Location is opt-in (no auto-prompt) + manual entry
+
+**What**
+
+* `src/app/state.ts` — `LocationStatusState` now has an `idle` default (no
+  location requested at boot); `acquired` carries `source` ("gps" | "manual").
+  Added `locationEntry` flag ("closed" | "choosing") to `AppState`.
+* `src/app/app.ts` — removed the boot-time `getCurrentLocation()` auto-call.
+  Added `useGpsLocation()` (guard against re-request while acquiring/acquired),
+  `submitLocation(input)`, `openLocationEntry()`, `closeLocationEntry()`,
+  `changeLocation()` (clears location + resets `observerRelative` to idle).
+  Queries the Permissions API once on boot (inspect-only, never a prompt).
+* `src/domain/location.ts` — `LocationSource`/`LocationAccuracy`,
+  `ManualLocationInput` union ("city" | "coordinates"), pure
+  `resolveManualLocation()` and `buildManualObserver()` (finite + in-range
+  WGS-84 checks).
+* `src/data/cities.ts` (new) — curated 12-city list + `findCity()` for manual
+  (generic/coarse) coordinates; no network, no query-string leakage.
+* `src/components/LocationStatus.ts` — rewritten: idle prompt with "Use my
+  location" / "Enter location" buttons, manual-entry form (city dropdown OR raw
+  lat/lon with validation), acquired state with "Change", error states with
+  retry, and an honest permission-status line via the Permissions API.
+* `src/components/SatelliteList.ts` / `Dashboard.ts` — accept `hasLocation`;
+  "Visible now" without a location shows "No location set — set a location at
+  the top…" instead of forever "calculating".
+* `vercel.json` + `vite.config.ts` — Strict `Permissions-Policy` header
+  (`geolocation=(self), camera=(), microphone=()`) for prod + dev.
+* `src/styles/global.css` — idle/entry/button/permission-note styles.
+* `tests/domain/location_test.ts` (new), extended
+  `tests/services/geolocation_test.ts` (Permissions API), plus new domain tests.
+
+**Why**
+
+* Privacy-first (AGENTS.md §4/§12/§18/§19): precise coordinates are only fetched
+  on an explicit tap, used locally for the SGP4→topocentric maths, and never
+  stored, transmitted, or logged. A generic city/typed location is the
+  privacy-preserving alternative; it avoids sending any query string anywhere.
+* Discoverability is preserved: the All-tracked view works without location.
+* The restrictive Permissions-Policy enforces the model from day one.
+
+**Verified**
+
+* `deno check src api` ✓, `deno run -A npm:vite build` ✓ (40.88 kB JS),
+  `deno test` 57/57 non-live tests ✓ (live CelesTrak integration test still
+  fails while CelesTrak is down — pre-existing).
+
+**Next**
+
+* Phase 8 (deployment/mobile styling polish) once location UX is confirmed; then
+  commit the outstanding work.
 
 ### 2026-08-28 — Phase 7: Two views (All tracked / Visible now) + tap-to-detail
 

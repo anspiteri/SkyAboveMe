@@ -29,6 +29,30 @@ export function isGeolocationSupported(): boolean {
 }
 
 /**
+ * Inspect the browser's current geolocation permission without triggering a
+ * prompt (Permissions API). Returns "granted" | "prompt" | "denied", or null
+ * when the Permissions API is unavailable. Used to show the user what the
+ * browser has already decided, so we never re-prompt unexpectedly.
+ */
+export async function queryGeolocationPermission(): Promise<
+  "granted" | "prompt" | "denied" | null
+> {
+  if (typeof navigator === "undefined" || !("permissions" in navigator)) {
+    return null;
+  }
+  try {
+    const status = await navigator.permissions.query({
+      name: "geolocation",
+    });
+    return status.state;
+  } catch {
+    // Some browsers throw for unsupported/denied permission queries; treat a
+    // failure as "we can't tell" rather than guessing.
+    return null;
+  }
+}
+
+/**
  * Request the observer's current position once.
  *
  * Catches every failure mode and normalises it to a `LocationError`, so the
