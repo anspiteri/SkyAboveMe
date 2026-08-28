@@ -2,6 +2,7 @@ import type { LocationStatusState } from "../components/LocationStatus.ts";
 import type { Satellite } from "../domain/satellite.ts";
 import type { PropagateResult } from "../services/satellite-propagation.ts";
 import type { ObserverRelativeResult } from "../services/observer-relative.ts";
+import type { TonightSummary } from "../domain/tonight.ts";
 
 /**
  * Application state for the dashboard.
@@ -19,6 +20,8 @@ export interface AppState {
   satellites: SatelliteDataState;
   positions: PropagationState;
   observerRelative: VisibilityState;
+  /** The VISIBLE TONIGHT pass prediction, once location + satellites are known. */
+  tonight: TonightState;
   /** Which satellite list the user is viewing. */
   view: SatelliteView;
   /** The satellite (if any) whose detail panel is expanded. */
@@ -31,7 +34,17 @@ export type LocationEntryState =
   | { kind: "choosing" };
 
 /** The two satellite views the dashboard can show. */
-export type SatelliteView = "all" | "visible";
+export type SatelliteView = "all" | "tonight";
+
+/**
+ * The VISIBLE TONIGHT pass prediction. `idle` until both a location and loaded
+ * satellites exist; `no-night` when the location/date has no distinct night
+ * (polar day/night); `ready` with the computed passes once available.
+ */
+export type TonightState =
+  | { kind: "idle" }
+  | { kind: "no-night" }
+  | { kind: "ready"; summary: TonightSummary };
 
 /**
  * Which satellite's detail panel is open. `none` means no panel is expanded.
@@ -77,6 +90,7 @@ export function createInitialState(): AppState {
     satellites: { kind: "loading" },
     positions: { kind: "idle" },
     observerRelative: { kind: "idle" },
+    tonight: { kind: "idle" },
     view: "all",
     selection: { kind: "none" },
   };
