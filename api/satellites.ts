@@ -14,9 +14,10 @@ import type { Satellite } from "../src/domain/satellite.ts";
  */
 
 const CELESTRAK_BASE = "https://celestrak.org/NORAD/elements/gp.php";
-const FETCH_TIMEOUT_MS = 8_000;
 /** Requests made to CelesTrak concurrently, to stay polite to the service. */
 const CONCURRENCY = 4;
+/** Hard cap on total proxy time so an outage fails fast instead of ~24 s. */
+const HANDLER_DEADLINE_MS = 5_000;
 
 export default async function handler(request: Request): Promise<Response> {
   if (request.method !== "GET") {
@@ -37,21 +38,39 @@ export default async function handler(request: Request): Promise<Response> {
   }
 }
 
-/** Fetch OMM records for every curated satellite and map them to domain types. */
+/**
+ * Fetch OMM records for every curated satellite and map them to domain types.
+ *
+ * All requests share a deadline-driven AbortSignal so that, during a CelesTrak
+ * outage, the whole batch is aborted after ~HANDLER_DEADLINE_MS instead of
+ * exhausting every per-request timeout (~24 s in the worst case).
+ */
 async function fetchCuratedSatellites(): Promise<Satellite[]> {
-  const results = await runBatched(CURATED_NORAD_IDS, CONCURRENCY, fetchSatellite);
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), HANDLER_DEADLINE_MS);
 
-  return results.filter((sat): sat is Satellite => sat !== null);
+  try {
+    const results = await runBatched(
+      CURATED_NORAD_IDS,
+      CONCURRENCY,
+      (noradId) => fetchSatellite(noradId, controller.signal),
+      controller.signal,
+    );
+    return results.filter((sat): sat is Satellite => sat !== null);
+  } finally {
+    clearTimeout(deadline);
+  }
 }
 
 /** Fetch, parse and enrich one satellite by NORAD catalogue number. */
-async function fetchSatellite(noradId: number): Promise<Satellite | null> {
+async function fetchSatellite(
+  noradId: number,
+  signal: AbortSignal,
+): Promise<Satellite | null> {
   const url = `${CELESTRAK_BASE}?CATNR=${noradId}&FORMAT=JSON`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { signal });
     if (!response.ok) {
       console.error(`CelesTrak returned ${response.status} for NORAD ${noradId}`);
       return null;
@@ -62,8 +81,6 @@ async function fetchSatellite(noradId: number): Promise<Satellite | null> {
     // Skip the failed satellite and keep processing the rest (AGENTS.md §17).
     console.error(`Failed to fetch orbital data for NORAD ${noradId}`, error);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -93,17 +110,18 @@ function fallbackLabel(name: string): string {
   return name || "Unknown";
 }
 
-/** Run `task` over `items`, at most `limit` tasks at a time. */
+/** Run `task` over `items`, at most `limit` tasks at a time, until aborted. */
 async function runBatched<T, R>(
   items: readonly T[],
   limit: number,
   task: (item: T) => Promise<R>,
+  signal: AbortSignal,
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let cursor = 0;
 
   const worker = async () => {
-    while (true) {
+    while (!signal.aborted) {
       const index = cursor++;
       if (index >= items.length) return;
       results[index] = await task(items[index] as T);

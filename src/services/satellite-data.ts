@@ -16,19 +16,30 @@ export type SatelliteDataResult =
   | { ok: false; error: SatelliteDataError };
 
 const API_PATH = "/api/satellites";
+/** How long the browser waits for the proxy before giving up. This bounds the
+ * loading/banner delay even if the proxy or CelesTrak hangs, so an outage is
+ * surfaced promptly (~7 s) instead of tying up the UI indefinitely. */
+export const FETCH_TIMEOUT_MS = 7_000;
 
 /**
  * Retrieve the curated satellite orbital data, if the proxy is reachable.
- * Never throws; returns a tagged result instead.
+ * Never throws; returns a tagged result instead. An abort (timeout) is treated
+ * as a network failure so the outage banner appears.
  */
 export async function fetchSatelliteData(): Promise<SatelliteDataResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
   let response: Response;
   try {
     response = await fetch(API_PATH, {
       headers: { Accept: "application/json" },
+      signal: controller.signal,
     });
   } catch {
     return { ok: false, error: "network" };
+  } finally {
+    clearTimeout(timer);
   }
 
   if (!response.ok) {
