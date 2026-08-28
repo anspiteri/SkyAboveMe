@@ -24,13 +24,97 @@ next steps so the next agent can pick up without re-reading the whole repo.
 > location" requests GPS once on explicit action; "Enter location" offers a
 > curated city list or raw lat/lon (generic/coarse). Precise coords stay in
 > browser memory only; Strict Permissions-Policy header set for dev + prod.
-> Next up: deeper mobile/style/deployment polish (see v2.md).
+> **Style (Phase 1 Foundation) DONE** — token-level instrument identity: bone
+> text `#D8D3C4`, sky-cyan accent `#73B9C9`, amber instrument `#D6A84A`,
+> near-black `#080A0A/#0D1010`; monospace-first (IBM Plex Mono via Google Fonts
+> CDN); radii → 2px; shadows reduced; `--color-on-accent` defined. **Next:** the
+> **VISIBLE TONIGHT** nighttime-viewer feature (§19b), then the deeper
+> Information-language + identity styling passes.
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Style Phase 1 (Foundation): token-level instrument identity
+
+**What**
+
+* `src/styles/tokens.css` — reworked tokens to the STYLE-GUIDE.md instrument
+  palette: near-black bg `#080A0A` / elevated `#0D1010`; bone text `#D8D3C4`,
+  muted `#85877F`, dim `#4D514C`; **sky/object** accent cyan `#73B9C9` (+ soft /
+  strong variants); **instrument** accent amber `#D6A84A` (+ soft / dim); success
+  `#91B86A`, warning `#D09A3A`, danger `#C86655`; border toned to
+  `rgba(216,211,196,0.14)`. Radii reduced to `2px` (machined). Shadows reduced.
+  Added `--color-on-accent: #081416` (was referenced but never defined) and
+  `--tracking-label`.
+* `index.html` — IBM Plex Mono (400/500/600/700) via Google Fonts CDN links
+  (preconnect + stylesheet); `theme-color` → `#080A0A`.
+* `src/styles/global.css` — body font → monospace-first (`var(--font-mono)`) with
+  `tabular-nums`.
+
+**Why**
+
+* Establish the instrument identity at the token level first (STYLE-GUIDE §38
+  Phase 1), which applies cleanly to all current views and carries into VISIBLE
+  TONIGHT. Chose third-party Google Fonts request to experiment; may switch to
+  self-hosting later. No component restructure yet (deferred Phase 2).
+
+**Verified**
+
+* `deno check src api` ✓, `vite build` ✓ (8.43 kB CSS), 57/57 non-live tests ✓.
+
+**Next**
+
+* **VISIBLE TONIGHT** nighttime-viewer feature (§19b) — the destination for the
+  current "Visible now" view — then the deeper Information-language + identity
+  styling passes (Phases 2–3) once the feature's shape is known.
+
+### 2026-08-28 — Style guide integrated with built functionality
+
+**What**
+
+* Created `agents/STYLE-GUIDE.md` (UNTRACKED — gitignored) as the visual
+  direction, then reworked it so it is consistent with what V1 actually
+  computes rather than describing only un-built features.
+* Added **§0 "Scope & V1 Status"** with a **data-provenance** contract: markers
+  PRESENT / FUTURE / TODO, and the rule that a metric renders only when the app
+  computes it (tie-in to AGENTS.md §13 no-fabrication).
+* Reframed the status of each "vision" section:
+  * **PRESENT** (§17): real-time above-horizon list — count, aligned
+    name/azimuth/elevation/range columns (monospace), cyan live-object accent,
+    tap-to-expand detail, honest no-location state.
+  * **FUTURE** (§15 Tonight, §16 Best Window, §18 Naked-Eye, §19 Upcoming
+    Events, plus §20 objects / §21 conditions).
+  * **NEW §19b "VISIBLE TONIGHT — TODO (next phase, more than style)"**: the
+    destination for the current "Visible now" view — a primarily **nighttime**
+    viewer computing tonight's passes, best observing window, and next events.
+    Documents the required computation (multi-epoch propagation → horizon-cross
+    detection → rise/set/culmination → best window) so it's actionable, and
+    explicitly scopes out metrics with no data source (cloud, darkness,
+    naked-eye, Moon/planets/stars, space weather, aurora).
+* Reframed **§32 Existing Component Direction** to the real components and where
+  each lands (header nameplate, location status strip, manual-entry form, view
+  toggle, both satellite views, detail readout, outage banner).
+* Updated **§24 mobile walkthrough** and **§38 styling priority**: Phases 1–2
+  (Foundation + Information language) are pure style and apply to V1 now; Phase
+  3 (TONIGHT / BEST WINDOW / VISIBLE TONIGHT / NEXT 60 / CONDITIONS) needs the
+  §19b feature first and is not cosmetic.
+
+**Why**
+
+* The user wants the guide's richer night view to eventually be the **VISIBLE
+  TONIGHT** page (not "Visible now"), which is a real feature beyond styling.
+* Keep the guide honest: never style/fabricate metrics the app can't compute.
+
+**Next**
+
+* Phase 8 style implementation: update `tokens.css` (palette → bone #D8D3C4,
+  instrument amber #D6A84A, sky cyan #73B9C9, near-black bg), type →
+  monospace-first (IBM Plex Mono), radii ~2px, drop shadows; then apply the
+  Information-language pass to current components. VISIBLE TONIGHT feature is a
+  separate future phase.
 
 ### 2026-08-28 — Phase 8: Location is opt-in (no auto-prompt) + manual entry
 

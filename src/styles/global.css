@@ -8,8 +8,9 @@ body {
   min-height: 100dvh;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
 }
 
 #app {
