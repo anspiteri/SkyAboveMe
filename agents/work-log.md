@@ -15,18 +15,75 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phases 4, 5 and 6 done. Satellites are propagated (SGP4), converted
-> to azimuth/elevation/range against the observer, shown **only above the
-> horizon**, with an honest empty state and a clear outage/error info banner
-> (now fail-fast: 5s server deadline + 7s client timeout) when satellite data is
-> unavailable (e.g. temporary CelesTrak outage). Next up: Phase 7 (Ranking /
-> "interestingness" order).
+> **Status:** Phases 4, 5, 6 and 7 done. Satellites are propagated (SGP4),
+> converted to azimuth/elevation/range against the observer, with a clear
+> outage/error info banner (fail-fast: 5s server deadline + 7s client timeout).
+> **Phase 7** adds two views — **All tracked** (full curated catalog, tappable
+> rows with expandable detail) and **Visible now** (above-horizon only, ranked by
+> "most visible / closest right now" i.e. elevation desc → range asc). No
+> "interestingness" heuristic; the detail (description + orbit facts) is what
+> makes each object interesting. Next up: Phase 8 (mobile style/deployment
+> polish).
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Phase 7: Two views (All tracked / Visible now) + tap-to-detail
+
+**What**
+
+* `src/services/observer-relative.ts` — added pure `rankByVisibility(results)`
+  ordering above-horizon results by elevation descending, then range ascending
+  (closest first); stable, drops skips. Applied in `app.ts` `computeVisibility()`
+  after `filterAboveHorizon`.
+* `src/astronomy/orbit.ts` (new) — pure `orbitalPeriodMinutes()` and
+  `altitudeKm()` derivations used in the detail panel.
+* `src/app/state.ts` — added hoisted UI state: `view: SatelliteView`
+  ("all" | "visible") and `selection: SelectedSatellite` (single-open detail).
+* `src/app/app.ts` — wires `rankByVisibility`; adds `selectSatellite()`
+  (single-open toggle) and `setView()`; passes new props through render.
+* `src/components/Dashboard.ts` — forwards view/selection/onSelect/onSetView.
+* `src/components/SatelliteList.ts` — rewritten: segmented toggle (All tracked /
+  Visible now), tappable rows with chevron hint and `aria-expanded`, and a shared
+  expandable detail panel (full name, curated description, NORAD, orbit facts:
+  altitude/period/inclination, plus live az/elev/range) for both views. Retired
+  the old ECI-fallback view.
+* `src/styles/global.css` — segmented control, tappable row + chevron, expanded
+  detail panel styles; kept dark-sky tokens. (Next phase is a dedicated style
+  polish pass for phone + deployment.)
+* `agents/v2.md` (new, UNTRACKED — added to `.gitignore`) — future
+  considerations: official (non-CelesTrak) per-satellite link-outs, ranking
+  refinements, mobile polish notes.
+* `agents/AGENTS.md` (untracked) — §15/§25 updated for visibility ranking +
+  two views; §8 structure adds `astronomy/orbit.ts`.
+
+**Why**
+
+* Pivot from an "interestingness" heuristic to a simple, data-honest ordering:
+  rank by what is most visible / closest right now, and let tapping a satellite
+  reveal its description + facts (the interesting part) rather than a numeric
+  score. Two explicit views separate "browse my satellites" from "what can I see
+  now". Hoisted view/selection so they survive the wholesale re-renders.
+* AGENTS.md §15 (transparent ordering, no fabricated data), §16 (pure, testable),
+  §21 (no new deps/framework/DB).
+* CelesTrak SATCAT record URL (`records.php?CATNR=<id>`) was considered for a
+  detail "link out" and deferred (see `agents/v2.md`) — prefer official sources.
+
+**Verification**
+
+* typecheck ✓, build ✓ (34.43 kB JS / 6.69 kB CSS — small growth from the detail
+  panel), 47 non-live tests ✓ (new: `rankByVisibility` ×3, `orbit.ts` ×4).
+* Live CelesTrak integration test still blocked by the ongoing outage (unrelated).
+
+**Next**
+
+* Phase 8 — dedicated style/polish pass to get the UI ready for a phone and
+  deployment (touch targets, safe-area insets, a11y, loading states, Vercel).
+
+---
 
 ### 2026-08-28 — Satellite-data outage / error info banner
 

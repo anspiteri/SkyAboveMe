@@ -2,6 +2,7 @@ import { assertEquals, assertAlmostEquals, assert } from "jsr:@std/assert";
 import {
   computeObserverRelativePositions,
   filterAboveHorizon,
+  rankByVisibility,
   type ObserverRelativeResult,
 } from "../../src/services/observer-relative.ts";
 import { isAboveHorizon } from "../../src/domain/visibility.ts";
@@ -125,4 +126,64 @@ Deno.test("filterAboveHorizon: preserves input order and handles empty input", (
   };
   assertEquals(filterAboveHorizon([a, b]).map((r) => r.noradId), [10, 11]);
   assertEquals(filterAboveHorizon([]).length, 0);
+});
+
+Deno.test("rankByVisibility: ranks by elevation descending", () => {
+  const low: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 1,
+    position: { elevationDeg: 12, azimuthDeg: 0, rangeKm: 2000 },
+  };
+  const high: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 2,
+    position: { elevationDeg: 71, azimuthDeg: 90, rangeKm: 800 },
+  };
+  const mid: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 3,
+    position: { elevationDeg: 45, azimuthDeg: 180, rangeKm: 1200 },
+  };
+  assertEquals(rankByVisibility([low, high, mid]).map((r) => r.noradId), [
+    2,
+    3,
+    1,
+  ]);
+});
+
+Deno.test("rankByVisibility: ties on elevation are broken by closer range first", () => {
+  const a: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 1,
+    position: { elevationDeg: 40, azimuthDeg: 0, rangeKm: 1500 },
+  };
+  const b: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 2,
+    position: { elevationDeg: 40, azimuthDeg: 90, rangeKm: 1000 },
+  };
+  assertEquals(rankByVisibility([a, b]).map((r) => r.noradId), [2, 1]);
+});
+
+Deno.test("rankByVisibility: drops skips, keeps stability on full ties, empty ok", () => {
+  const a: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 1,
+    position: { elevationDeg: 30, azimuthDeg: 0, rangeKm: 900 },
+  };
+  const b: ObserverRelativeResult = {
+    status: "ok",
+    noradId: 2,
+    position: { elevationDeg: 30, azimuthDeg: 0, rangeKm: 900 },
+  };
+  const skip: ObserverRelativeResult = {
+    status: "skip",
+    noradId: 3,
+    reason: "decayed",
+  };
+  const ranked = rankByVisibility([skip, a, b]);
+  assertEquals(ranked.length, 2);
+  // Same elevation + range → stable input order preserved, skip excluded.
+  assertEquals(ranked.map((r) => r.noradId), [1, 2]);
+  assertEquals(rankByVisibility([]).length, 0);
 });
