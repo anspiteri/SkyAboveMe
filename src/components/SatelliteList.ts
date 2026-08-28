@@ -1,6 +1,7 @@
 import type { Satellite } from "../domain/satellite.ts";
-import type { PropagationState } from "../app/state.ts";
+import type { PropagationState, VisibilityState } from "../app/state.ts";
 import type { PropagateResult } from "../services/satellite-propagation.ts";
+import type { ObserverRelativeResult } from "../services/observer-relative.ts";
 
 export type SatelliteListState =
   | { kind: "loading" }
@@ -11,13 +12,16 @@ export interface SatelliteListProps {
   state: SatelliteListState;
   /** The computed SGP4 positions; `idle` before the loaded satellites propagate. */
   positions: PropagationState;
+  /** Observer-relative azimuth/elevation/range, shown once both are ready. */
+  visibility: VisibilityState;
   onRetry: () => void;
 }
 
 /**
- * Shows the fetched satellites and, once propagated, each satellite's current
- * ECI position. Altitude/azimuth ranking replaces the raw coordinates in later
- * phases.
+ * Shows the fetched satellites and their current position from the observer.
+ * Once both the observer location and propagated positions are known, each
+ * satellite row shows azimuth/elevation/range; until then it falls back to the
+ * raw propagated ECI position.
  */
 export function renderSatelliteList(
   root: HTMLElement,
@@ -75,9 +79,12 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       ul.className = "satellite-list__items";
 
       const positionsByNorad = positionsById(props.positions);
+      const visibilityByNorad = visibilityById(props.visibility);
 
       for (const satellite of state.satellites) {
-        ul.append(renderItem(satellite, positionsByNorad));
+        ul.append(
+          renderItem(satellite, positionsByNorad, visibilityByNorad),
+        );
       }
 
       const wrap = document.createElement("div");
@@ -101,10 +108,28 @@ function positionsById(state: PropagationState): Map<number, PropagateResult> {
   return byId;
 }
 
-/** Render one satellite row: label plus its current ECI position when known. */
+/** Index observer-relative results by NORAD catalogue number. */
+function visibilityById(
+  state: VisibilityState,
+): Map<number, ObserverRelativeResult> {
+  const byId = new Map<number, ObserverRelativeResult>();
+  if (state.kind === "ready") {
+    for (const result of state.results) {
+      byId.set(result.noradId, result);
+    }
+  }
+  return byId;
+}
+
+/**
+ * Render one satellite row: its label plus its position. When observer-relative
+ * results are available show azimuth/elevation/range; otherwise fall back to
+ * the propagated ECI position.
+ */
 function renderItem(
   satellite: Satellite,
   positions: Map<number, PropagateResult>,
+  visibility: Map<number, ObserverRelativeResult>,
 ): HTMLLIElement {
   const li = document.createElement("li");
   li.className = "satellite-list__item";
@@ -114,6 +139,18 @@ function renderItem(
   name.textContent = satellite.label;
 
   li.append(name);
+
+  const observed = visibility.get(satellite.noradId);
+  if (observed && observed.status === "ok") {
+    const p = observed.position;
+    const coord = document.createElement("span");
+    coord.className = "satellite-list__position";
+    coord.textContent =
+      `${formatAzimuth(p.azimuthDeg)} · ${formatElevation(p.elevationDeg)} · ` +
+      `${p.rangeKm.toFixed(0)} km`;
+    li.append(coord);
+    return li;
+  }
 
   const result = positions.get(satellite.noradId);
   if (result && result.status === "ok") {
@@ -125,4 +162,20 @@ function renderItem(
   }
 
   return li;
+}
+
+/** Format a compass azimuth, e.g. "NE (48°)". */
+function formatAzimuth(azimuthDeg: number): string {
+  const cardinal = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const index =
+    Math.round(((azimuthDeg % 360 + 360) % 360) / 45) % 8;
+  return `${cardinal[index]} ${Math.round(azimuthDeg)}°`;
+}
+
+/** Format an elevation as degrees above/below the horizon. */
+function formatElevation(elevationDeg: number): string {
+  const rounded = Math.round(Math.abs(elevationDeg));
+  return elevationDeg < 0
+    ? `${rounded}° below horizon`
+    : `${rounded}° above horizon`;
 }
