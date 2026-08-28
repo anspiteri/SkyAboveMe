@@ -16,15 +16,98 @@ next steps so the next agent can pick up without re-reading the whole repo.
 ## Latest
 
 > **Status:** Phases 4, 5 and 6 done. Satellites are propagated (SGP4), converted
-> to azimuth/elevation/range against the observer, and the dashboard now shows
-> **only what is above the horizon** (elevation > 0°), with an honest empty
-> state. Next up: Phase 7 (Ranking / "interestingness" order).
+> to azimuth/elevation/range against the observer, shown **only above the
+> horizon**, with an honest empty state and a clear outage/error info banner
+> (now fail-fast: 5s server deadline + 7s client timeout) when satellite data is
+> unavailable (e.g. temporary CelesTrak outage). Next up: Phase 7 (Ranking /
+> "interestingness" order).
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Satellite-data outage / error info banner
+
+**What**
+
+* `src/app/state.ts` — added `{ kind: "empty" }` to `SatelliteDataState` for a
+  successful proxy response that contains no satellites.
+* `src/app/app.ts` — `loadSatellites()` now treats an empty successful response
+  as a temporary outage (`{ kind: "empty" }`) instead of an empty sky, and
+  builds clear, human-facing error messages via `satelliteDataMessage(error)`
+  (replaces the terse `Couldn't load satellite data (network).`).
+* `src/components/SatelliteList.ts` — added `"empty"` to its state union and a
+  `renderInfoBanner()` helper; both `error` and `empty` render as a title +
+  plain-language explanation + "Try again" button.
+* `src/styles/global.css` — `.satellite-list__banner` styles with an amber
+  (warning) left accent so the outage reads as an informative notice, not a
+  generic placeholder.
+
+**Why**
+
+* When CelesTrak is down the proxy (correctly, per §17) delegates per-satellite
+  failures and returns HTTP 200 with an **empty** array; the app previously
+  read that as "success → nothing above the horizon", which is misleading
+  during an outage. The new `empty` state turns this into a clear info banner.
+* AGENTS.md §13 ("If a value is not available... show an honest unavailable
+  state") and §17 (graceful degradation, no fake data); §19 (no sensitive logs —
+  messages are generic).
+
+**Verification**
+
+* typecheck ✓, build ✓ (31.62 kB JS / CSS +banner), all 39 non-live tests ✓.
+* The live `tests/api/satellites_test.ts` still cannot pass during the current
+  confirmed CelesTrak outage (direct curl → HTTP 000); unrelated to this change.
+
+**Next**
+
+* Phase 7 — Ranking: a transparent "interestingness" score to order the list.
+
+---
+
+### 2026-08-28 — Snappier outage banner (fail-fast + client timeout)
+
+**What**
+
+* `api/satellites.ts` — replaced the per-request `FETCH_TIMEOUT_MS = 8s` with a
+  shared `HANDLER_DEADLINE_MS = 5s` `AbortController`. `fetchCuratedSatellites()`
+  aborts all in-flight CelesTrak requests at the deadline; `runBatched` stops
+  scheduling new work once aborted and `fetchSatellite(noradId, signal)` uses the
+  shared signal (no per-satellite timer). So an outage now resolves in ~5s instead
+  of exhausting 12 requests at concurrency 4 (~24s) and returning 200/empty.
+* `src/services/satellite-data.ts` — client-side `FETCH_TIMEOUT_MS = 7s`
+  `AbortController` around the `/api/satellites` fetch, treated as a `network`
+  failure so the loading state / outage banner surfaces promptly (~7s) even if
+  the proxy or CelesTrak hangs.
+* `tests/services/satellite-data_test.ts` — added a timeout test asserting the
+  fetch aborts (~7s) and reports `network`; exported `FETCH_TIMEOUT_MS` for it.
+
+**Why**
+
+* User asked for the outage/data banner to appear snappier. During the current
+  confirmed CelesTrak outage, connections hang: without this the proxy took
+  ~24s (12 hung requests, 8s each, concurrency 4) and the browser waited that
+  whole time. A hard server deadline + a client-side abort bound the wait to
+  ~5-7s.
+* Single-request batching (`gp.php` with comma-separated `CATNR`) was considered
+  and rejected: CelesTrak docs state `CATNR` supports a *single* catalog number
+  only, so the multi-request path was kept and made to fail fast instead.
+* AGENTS.md §17 (graceful degradation / fail fast) and §7 (IO isolated in
+  services).
+
+**Verification**
+
+* typecheck ✓, build ✓ (31.72 kB JS), 40/41 tests ✓ — only the live CelesTrak
+  integration test fails and it now fails fast in ~5s (empty array → "expected at
+  least one satellite") during the ongoing outage; unrelated to this change.
+
+**Next**
+
+* Phase 7 — Ranking: a transparent "interestingness" score to order the list.
+
+---
 
 ### 2026-08-28 — Phase 6: Horizon filtering
 

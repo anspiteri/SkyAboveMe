@@ -1,5 +1,5 @@
-import { assertEquals, assertObjectMatch } from "@std/assert";
-import { fetchSatelliteData } from "../../src/services/satellite-data.ts";
+import { assertEquals, assertObjectMatch, assert } from "@std/assert";
+import { fetchSatelliteData, FETCH_TIMEOUT_MS } from "../../src/services/satellite-data.ts";
 
 /**
  * Exercises the client fetch service by stubbing `globalThis.fetch`, since the
@@ -98,5 +98,27 @@ Deno.test("fetchSatelliteData filters malformed records and keeps valid ones", a
   const result = await fetchSatelliteData();
   assertEquals(result.ok, true);
   if (result.ok) assertEquals(result.satellites.length, 1);
+  restoreFetch();
+});
+
+Deno.test("fetchSatelliteData reports network when the request is aborted by timeout", async () => {
+  const waited = new Promise<number>((resolve) => {
+    setFetch((_input, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        const t0 = Date.now();
+        init?.signal?.addEventListener("abort", () => {
+          resolve(Date.now() - t0);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      })
+    );
+  });
+
+  const result = await fetchSatelliteData();
+  assertEquals(result.ok, false);
+  if (!result.ok) assertEquals(result.error, "network");
+
+  const elapsed = await waited;
+  assert(elapsed >= FETCH_TIMEOUT_MS, `expected ~${FETCH_TIMEOUT_MS}ms wait`);
   restoreFetch();
 });

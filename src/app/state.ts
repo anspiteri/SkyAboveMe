@@ -20,6 +20,7 @@ export interface AppState {
 export type SatelliteDataState =
   | { kind: "loading" }
   | { kind: "loaded"; satellites: Satellite[] }
+  | { kind: "empty" }
   | { kind: "error"; message: string };
 
 /**

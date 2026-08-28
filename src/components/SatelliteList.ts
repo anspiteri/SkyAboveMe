@@ -6,6 +6,7 @@ import type { ObserverRelativeResult } from "../services/observer-relative.ts";
 export type SatelliteListState =
   | { kind: "loading" }
   | { kind: "loaded"; satellites: Satellite[] }
+  | { kind: "empty" }
   | { kind: "error"; message: string };
 
 export interface SatelliteListProps {
@@ -52,20 +53,21 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       return p;
     }
     case "error": {
-      const wrap = document.createElement("div");
-      wrap.className = "satellite-list__notice";
-
-      const p = document.createElement("p");
-      p.textContent = state.message;
-
-      const retry = document.createElement("button");
-      retry.className = "satellite-list__retry";
-      retry.type = "button";
-      retry.textContent = "Try again";
-      retry.addEventListener("click", props.onRetry);
-
-      wrap.append(p, retry);
-      return wrap;
+      return renderInfoBanner({
+        title: "Couldn't load satellite data",
+        body: state.message,
+        onRetry: props.onRetry,
+      });
+    }
+    case "empty": {
+      return renderInfoBanner({
+        title: "Orbital data is temporarily unavailable",
+        body:
+          "The satellite data service responded but returned no satellites, which " +
+          "usually means the orbital data source (CelesTrak) is unreachable right " +
+          "now. Try again shortly.",
+        onRetry: props.onRetry,
+      });
     }
     case "loaded": {
       // Once the observer-relative results are ready they are the filtered,
@@ -220,4 +222,38 @@ function formatElevation(elevationDeg: number): string {
   return elevationDeg < 0
     ? `${rounded}° below horizon`
     : `${rounded}° above horizon`;
+}
+
+interface InfoBannerProps {
+  title: string;
+  body: string;
+  onRetry: () => void;
+}
+
+/**
+ * A clear, self-explanatory info/outage banner with a title, a plain-language
+ * explanation and a retry action. Used for both hard fetch errors and the
+ * "no data returned" (upstream outage) case so the user always sees why the
+ * sky is empty and how to try again (AGENTS.md §13, §17).
+ */
+function renderInfoBanner(props: InfoBannerProps): HTMLDivElement {
+  const wrap = document.createElement("div");
+  wrap.className = "satellite-list__banner";
+
+  const title = document.createElement("p");
+  title.className = "satellite-list__banner-title";
+  title.textContent = props.title;
+
+  const body = document.createElement("p");
+  body.className = "satellite-list__banner-body";
+  body.textContent = props.body;
+
+  const retry = document.createElement("button");
+  retry.className = "satellite-list__retry";
+  retry.type = "button";
+  retry.textContent = "Try again";
+  retry.addEventListener("click", props.onRetry);
+
+  wrap.append(title, body, retry);
+  return wrap;
 }
