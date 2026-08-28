@@ -1,0 +1,16 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "deno run -A npm:vite",
+    "build": "deno run -A npm:vite build",
+    "preview": "deno run -A npm:vite preview",
+    "check": "deno run -A npm:vite build",
+    "typecheck": "deno check src",
+    "test": "deno test --allow-read --allow-env"
+  },
+  "imports": {
+    "satellite.js": "npm:satellite.js@^7.1.0",
+    "typescript": "npm:typescript@~6.0.3",
+    "vite": "npm:vite@^8.2.2"
+  }
+}

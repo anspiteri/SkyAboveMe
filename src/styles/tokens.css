@@ -1,0 +1,68 @@
+/* Design tokens — the single source of truth for visual style.
+   Dark-sky inspired: deep night backgrounds, cool neutrals, one accent. */
+
+:root {
+  /* Color palettes */
+  --color-bg: #0b1020;
+  --color-bg-elevated: #131a30;
+  --color-surface: rgba(255, 255, 255, 0.04);
+  --color-surface-hover: rgba(255, 255, 255, 0.08);
+
+  --color-text: #e7ecf7;
+  --color-text-muted: #93a0bd;
+  --color-text-subtle: #5f6b87;
+
+  --color-accent: #38bdf8;
+  --color-accent-soft: rgba(56, 189, 248, 0.14);
+  --color-accent-strong: #0ea5e9;
+
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  --color-border: rgba(255, 255, 255, 0.08);
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo,
+    Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.5rem;
+
+  --tracking-tight: -0.02em;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Radii */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-full: 999px;
+
+  /* Shadows */
+  --shadow-elevated: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+  --shadow-soft: 0 4px 16px -8px rgba(0, 0, 0, 0.5);
+
+  /* Layout */
+  --content-width: 42rem;
+  --page-pad: 1rem;
+
+  /* Breakpoints */
+  --bp-sm: 30rem; /* 480px */
+  --bp-md: 48rem; /* 768px */
+  --bp-lg: 64rem; /* 1024px */
+}
