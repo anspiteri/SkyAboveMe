@@ -15,14 +15,60 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phase 2 (Geolocation) done. Next up: Phase 3 (Satellite data —
-> Vercel serverless proxy + client fetch service).
+> **Status:** Phase 3 (Satellite data) done — proxy + client fetch + basic names/
+> counts UI, verified live through the dev server. Next up: Phase 4
+> (Propagation with SGP4).
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Phase 3: Satellite data
+
+**What**
+
+* `src/domain/satellite.ts` — pure `Satellite` + `SatelliteElements` types
+  (parsed orbital elements + display metadata).
+* `src/services/parse-omm.ts` — `parseOmmRecord()` maps one CelesTrak OMM JSON
+  record to a domain identity+elements object, returning `null` for malformed
+  records (skip-and-continue, AGENTS.md §17).
+* `api/satellites.ts` — Vercel serverless proxy. Fetches each curated NORAD ID
+  from CelesTrak (`gp.php?CATNR=…&FORMAT=JSON`) with bounded concurrency,
+  parses OMM, enriches with curated labels/descriptions, returns domain
+  `Satellite[]` with CORS + short CDN cache. Stateless, receives no location.
+* `vercel.json` — function config (`maxDuration: 10`).
+* `src/services/satellite-data.ts` — client fetch service hitting
+  `/api/satellites`, validating the response shape, returning a tagged
+  `SatelliteDataResult` (never throws).
+* `scripts/dev-api.ts` + `vite.config.ts` proxy + `deno.json` tasks — local
+  development mode: `deno task dev` runs the API handler on :8787 and Vite on
+  :5173 with `/api` proxied.
+* UI wiring (basic names/counts per Phase 3): `src/app/state.ts`
+  (`SatelliteDataState`), `src/components/SatelliteList.ts`
+  (loading/loaded/error + retry), `Dashboard.ts`, `app.ts`.
+* Tests: `parse-omm_test.ts`, `satellite-data_test.ts`, `api/satellites_test.ts`
+  (live integration, skips when CelesTrak is down). Total suite: 15 passing.
+
+**Why**
+
+* AGENTS.md §9 (OMM ↔ domain conversion at the service boundary), §17 (error
+  handling), §20 (serverless proxy for CORS/caching; user chose proxy-first).
+* Phase 3 goal: retrieve a manageable dataset, parse it, display names/counts.
+
+**Details**
+
+* Verified live: `deno task dev` -> Vite :5173 proxies `/api/satellites` ->
+  handler -> CelesTrak, returning all 12 curated domain satellites (HTTP 200).
+* `deno check src api` passes, `deno task build` passes.
+
+**Next**
+
+* Phase 4 — Propagation: integrate `satellite.js` SGP4; use `Satellite.elements`
+  via `json2satrec` to compute positions for the current time.
+
+---
 
 ### 2026-08-28 — Phase 2: Geolocation
 
@@ -60,9 +106,9 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 **Next**
 
-* Phase 3 — Satellite data: build Vercel serverless proxy `api/satellites.ts`
-  fetching `CURATED_NORAD_IDS` from CelesTrak (OMM JSON) server-side to avoid
-  CORS; add client fetch service + domain mapping.
+* Phase 3 (Satellite data) — done, see the entry above.
+
+---
 
 ### 2026-08-28 — Step 1: Curated satellite catalog
 
@@ -122,9 +168,7 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 **Next**
 
-* Phase 2 (Geolocation) — done, see the entry above.
-* Phase 3 — Satellite data: build Vercel serverless proxy `api/satellites.ts`
-  that fetches `CURATED_NORAD_IDS` from CelesTrak (OMM JSON) server-side to
-  avoid CORS; add client fetch service.
+* Phase 2 (Geolocation) and Phase 3 (Satellite data) — done, see the entries
+  above.
 
 ---
