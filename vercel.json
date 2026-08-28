@@ -12,7 +12,8 @@
     }
   ],
   "functions": {
-    "api/satellites.ts": {
+    "api/**/*.[jt]s": {
+      "runtime": "vercel-deno@3.2.0",
       "maxDuration": 10
     }
   }
