@@ -1,10 +1,14 @@
 import { renderDashboard } from "../components/Dashboard.ts";
-import type { AppState } from "./state.ts";
+import type { AppState, SatelliteView } from "./state.ts";
 import { createInitialState } from "./state.ts";
 import { getCurrentLocation } from "../services/geolocation.ts";
 import { fetchSatelliteData, type SatelliteDataError } from "../services/satellite-data.ts";
 import { propagateSatellites } from "../services/satellite-propagation.ts";
-import { computeObserverRelativePositions, filterAboveHorizon } from "../services/observer-relative.ts";
+import {
+  computeObserverRelativePositions,
+  filterAboveHorizon,
+  rankByVisibility,
+} from "../services/observer-relative.ts";
 
 /**
  * Boot the application into the given mount element.
@@ -24,7 +28,11 @@ export function bootApp(app: HTMLElement): void {
       satellites: state.satellites,
       positions: state.positions,
       visibility: state.observerRelative,
+      view: state.view,
+      selection: state.selection,
       onRetrySatellites: loadSatellites,
+      onSelectSatellite: selectSatellite,
+      onSetView: setView,
     });
   }
 
@@ -84,11 +92,38 @@ export function bootApp(app: HTMLElement): void {
       state.location.observer,
       okPositions,
     );
+    // Keep only above-horizon results and order them by "most visible / closest
+    // right now" so the Visible-now view needs no further sorting.
     state.observerRelative = {
       kind: "ready",
-      results: filterAboveHorizon(all),
+      results: rankByVisibility(filterAboveHorizon(all)),
       computedAt: now.getTime(),
     };
+  }
+
+  /**
+   * Open (or close) a satellite's detail panel. Single-open: selecting a
+   * different satellite collapses the previously expanded one, and tapping the
+   * currently-selected satellite collapses it.
+   */
+  function selectSatellite(noradId: number | null): void {
+    if (noradId === null) {
+      state.selection = { kind: "none" };
+    } else if (
+      state.selection.kind === "selected" &&
+      state.selection.noradId === noradId
+    ) {
+      state.selection = { kind: "none" };
+    } else {
+      state.selection = { kind: "selected", noradId };
+    }
+    render();
+  }
+
+  /** Switch between the "All tracked" and "Visible now" satellite views. */
+  function setView(view: SatelliteView): void {
+    state.view = view;
+    render();
   }
 
   void getCurrentLocation().then((result) => {

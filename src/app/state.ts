@@ -7,15 +7,32 @@ import type { ObserverRelativeResult } from "../services/observer-relative.ts";
  * Application state for the dashboard.
  *
  * V1 composition: current location status, the fetched satellite data, the
- * computed SGP4 positions, and the observer-relative (azimuth/elevation/range)
- * visibility results derived from those positions plus the observer location.
+ * computed SGP4 positions, the observer-relative (azimuth/elevation/range)
+ * visibility results derived from those positions plus the observer location,
+ * and the user's UI choices (which satellite view is shown, and which satellite
+ * (if any) has its detail panel expanded).
  */
 export interface AppState {
   location: LocationStatusState;
   satellites: SatelliteDataState;
   positions: PropagationState;
   observerRelative: VisibilityState;
+  /** Which satellite list the user is viewing. */
+  view: SatelliteView;
+  /** The satellite (if any) whose detail panel is expanded. */
+  selection: SelectedSatellite;
 }
+
+/** The two satellite views the dashboard can show. */
+export type SatelliteView = "all" | "visible";
+
+/**
+ * Which satellite's detail panel is open. `none` means no panel is expanded.
+ * Exactly one satellite can be expanded at a time (single-open accordion).
+ */
+export type SelectedSatellite =
+  | { kind: "none" }
+  | { kind: "selected"; noradId: number };
 
 export type SatelliteDataState =
   | { kind: "loading" }
@@ -48,5 +65,7 @@ export function createInitialState(): AppState {
     satellites: { kind: "loading" },
     positions: { kind: "idle" },
     observerRelative: { kind: "idle" },
+    view: "all",
+    selection: { kind: "none" },
   };
 }

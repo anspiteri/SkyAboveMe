@@ -72,3 +72,24 @@ export function filterAboveHorizon(
     (r) => r.status === "ok" && isAboveHorizon(r.position.elevationDeg),
   );
 }
+
+/**
+ * Rank the above-horizon results by "most visible / closest to the observer
+ * right now": elevation descending (higher = easier to see), breaking ties by
+ * range ascending (closer = brighter/clearer). Skips are dropped. The sort is
+ * stable, so results with identical elevation and range keep their input order.
+ *
+ * This replaces any weighted "interestingness" heuristic: it is a transparent,
+ * purely data-driven ordering (AGENTS.md §15, §22).
+ */
+export function rankByVisibility(
+  results: ObserverRelativeResult[],
+): ObserverRelativeResult[] {
+  const ok = results.filter((r) => r.status === "ok");
+  return ok.sort((a, b) => {
+    if (a.status !== "ok" || b.status !== "ok") return 0;
+    const byElevation = b.position.elevationDeg - a.position.elevationDeg;
+    if (byElevation !== 0) return byElevation;
+    return a.position.rangeKm - b.position.rangeKm;
+  });
+}
