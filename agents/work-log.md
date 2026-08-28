@@ -16,7 +16,9 @@ next steps so the next agent can pick up without re-reading the whole repo.
 ## Latest
 
 > **Status:** Phases 4–8 done + Style Phase 1 foundation + **VISIBLE TONIGHT
-> feature done.** The app propagates satellites (SGP4), converts to
+> feature done** + **offline dev fixture added** + **Vercel deployment config
+> added (frontend build via a minimal `package.json`, API function on the Deno
+> community runtime).** The app propagates satellites (SGP4), converts to
 > azimuth/elevation/range against the observer, and now predicts the coming
 > night: **VISIBLE TONIGHT** replaces "Visible now" as the second view. It
 > computes (via pure NOAA sunrise/sunset) the sunset→next-sunrise window, then
@@ -27,15 +29,72 @@ next steps so the next agent can pick up without re-reading the whole repo.
 > metrics — all numbers are computed. **Offline dev fixture added:** run
 > `deno task dev:mock` to view the app with static satellites while CelesTrak is
 > down (serves realistic-but-frozen elements over `/api/satellites`; normal
-> `dev`/prod untouched). **Next:** deeper Information-language + identity
-> styling passes (STYLE-GUIDE §38 Phases 2–3) now that the feature shape is
-> known; retry the live `tests/api` integration test once CelesTrak returns.
+> `dev`/prod untouched). **Deployment:** a `package.json` + committed
+> `package-lock.json` let Vercel's native npm install+build produce a `dist/`
+> verified byte-identical to `deno task build` (both hash `index-BDSTd0_7.js`);
+> the `/api` function runs on `vercel-deno@3.2.0`. **Next:** import
+> `anspiteri/SkyAboveMe` (branch `main`) into Vercel with Build command
+> `npm run build` / Output dir `dist`; then return to the deeper
+> Information-language + identity styling passes (STYLE-GUIDE §38 Phases 2–3);
+> retry the live `tests/api` integration test once CelesTrak returns.
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — Vercel deployment config (frontend build + Deno function runtime)
+
+**What**
+
+* `package.json` (new) — minimal build scaffold: `devDependencies`
+  `vite@^8.2.2` + `satellite.js@^7.1.0`; scripts `build` (`vite build`) and
+  `preview` (`vite preview`). No runtime deps, `type: module`, `private`.
+* `package-lock.json` (new, committed) — lockfileVersion 3 (vite 8.2.2,
+  satellite.js 7.1.0). Lets Vercel's `npm ci` reproduce the exact build env.
+* `vercel.json` — function config changed to the **Deno community runtime**
+  (user-confirmed): `"functions": { "api/**/*.[jt]s": { "runtime":
+  "vercel-deno@3.2.0", "maxDuration": 10 } }`. Kept the Permissions-Policy
+  header.
+
+**Why**
+
+* Vercel needs `vite` + `satellite.js` at build time because `vite.config.ts`
+  aliases `satellite.js/dist/...` to a hard `node_modules/...` path, and
+  `node_modules` is gitignored. A minimal `package.json` makes Vercel's native
+  auto-install + auto-build the default, highest-probability path.
+* Dev/test/typecheck STAY on Deno — `package.json` only adds a parallel build
+  route for Vercel.
+* `api/satellites.ts` uses Deno-style `.ts`-extension relative imports, so its
+  function runs on the community Deno runtime (independent of how the frontend
+  builds).
+* **Both build routes prototyped in temp dirs and proven identical:** (A)
+  smallest `package.json` + `npm ci` + `npm run build`, and (B) pure Deno
+  (`deno install --entrypoint` then `deno task build`). Both produced the same
+  `dist/` (hashes `index-BDSTd0_7.js` / `index-B8HEkHDy.css`). Chose **A** for
+  reliability over Vercel's fragile custom-install/build path that pure-Deno
+  (B) requires (`installCommand` must curl-install Deno + `buildCommand` runs
+  `/vercel/.deno/bin/deno task build`; the symlinked Deno node_modules layout
+  *does* resolve the dist/ alias, but A avoids all that moving parts).
+
+**Verified**
+
+* `deno check src api` ✓; `deno task build` ✓; `deno task test` → **74 passed,
+  1 failed** (the only failure is the live CelesTrak `tests/api` integration
+  test during the ongoing outage — pre-existing, unrelated).
+* Clean-room `npm ci && npm run build` (fresh checkout, committed lockfile)
+  produces a dist byte-identical to `deno task build` (same asset hashes).
+
+**Next**
+
+* User imports `anspiteri/SkyAboveMe` (branch `main`) into Vercel: framework
+  "Other", Build command `npm run build`, Output directory `dist`. API function
+  is picked up automatically from `api/`; it runs on `vercel-deno@3.2.0`. Note
+  `tests/api` integration test will still return empty during the CelesTrak
+  outage — not a deployment blocker.
+* Retry the live `tests/api` test once CelesTrak returns.
+* Resume styling passes (STYLE-GUIDE §38 Phases 2–3).
 
 ### 2026-08-28 — Offline dev fixture: view the app during a CelesTrak outage
 
