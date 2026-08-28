@@ -1,4 +1,5 @@
-import { getCuratedSatellite, CURATED_NORAD_IDS } from "./curated-catalog.ts";
+#!/usr/bin/env deno run --no-config
+import { getCuratedSatellite, CURATED_NORAD_IDS } from "../src/data/curated-catalog.ts";
 import { parseOmmRecord } from "../src/services/parse-omm.ts";
 import type { Satellite } from "../src/domain/satellite.ts";
 
