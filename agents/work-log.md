@@ -15,27 +15,60 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phases 4–8 done. Satellites are propagated (SGP4), converted to
-> azimuth/elevation/range against the observer (fail-fast 5s server + 7s client
-> timeouts, outage/error banner). **Phase 7** adds two views — **All tracked**
-> (tappable rows with expandable detail) and **Visible now** (above-horizon,
-> ranked elevation desc → range asc). **Phase 8** makes **location fully
-> opt-in**: no auto-prompt at boot; the app is usable without it. "Use my
-> location" requests GPS once on explicit action; "Enter location" offers a
-> curated city list or raw lat/lon (generic/coarse). Precise coords stay in
-> browser memory only; Strict Permissions-Policy header set for dev + prod.
-> **Style (Phase 1 Foundation) DONE** — token-level instrument identity: bone
-> text `#D8D3C4`, sky-cyan accent `#73B9C9`, amber instrument `#D6A84A`,
-> near-black `#080A0A/#0D1010`; monospace-first (IBM Plex Mono via Google Fonts
-> CDN); radii → 2px; shadows reduced; `--color-on-accent` defined. **Next:** the
-> **VISIBLE TONIGHT** nighttime-viewer feature (§19b), then the deeper
-> Information-language + identity styling passes.
+> **Status:** Phases 4–8 done + Style Phase 1 foundation + **VISIBLE TONIGHT
+> feature done.** The app propagates satellites (SGP4), converts to
+> azimuth/elevation/range against the observer, and now predicts the coming
+> night: **VISIBLE TONIGHT** replaces "Visible now" as the second view. It
+> computes (via pure NOAA sunrise/sunset) the sunset→next-sunrise window, then
+> multi-epoch propagation (~60s steps) to detect every above-horizon pass
+> (rise/interpolated set/culmination + peak elevation + azimuth), derives a best
+> observing window (densest span of concurrent activity) and a chronological
+> next-events list, and shows a live right-now snapshot. No fabricated
+> metrics — all numbers are computed. **Next:** deeper Information-language +
+> identity styling passes (STYLE-GUIDE §38 Phases 2–3) now that the feature
+> shape is known; retry the live `tests/api` integration test once CelesTrak
+> returns.
 >
 > **Today's date:** 2026-08-28
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-28 — VISIBLE TONIGHT feature: pass prediction for the coming night
+
+**What**
+
+* `src/astronomy/sun.ts` (new) — pure NOAA sunrise/sunset (`sunriseUtc`,
+  `sunsetUtc`) + `tonightWindow` (sunset → next sunrise; null for polar day/night).
+* `src/domain/tonight.ts` (new) — `SatellitePass`, `BestObservingWindow`,
+  `NextEvent`, `TonightSummary` types.
+* `src/services/tonight.ts` (new) — `computeTonightSummary` propagates each
+  satellite across the night at 60s steps, converts each step to
+  observer-relative elevation/azimuth, detects contiguous above-horizon passes
+  (interpolating rise/set crossings, culminating at the peak sample); derives
+  the best window (longest run at max concurrency) and the next-events list.
+* `src/app/state.ts` — `SatelliteView` `"visible"` → `"tonight"`; new
+  `TonightState` (`idle` | `no-night` | `ready{summary}`).
+* `src/app/app.ts` — `computeTonight()` runs once location + satellites are
+  ready; recomputed on location change / data load; reset on location clear.
+* `src/components/SatelliteList.ts` — toggle "All tracked" / **"VISIBLE
+  TONIGHT"**; new tonight page (live snapshot, window bar, next events, pass
+  list reusing tap-to-expand detail).
+* `src/components/Dashboard.ts` — forwards `tonight` prop.
+* `src/styles/global.css` — tonight styles (live bar, window card, events).
+* Tests — `tests/astronomy/sun_test.ts` + `tests/services/tonight_test.ts`.
+
+**Why**
+
+* User decided VISIBLE TONIGHT replaces the "Visible now" view and is a real
+  feature (AGENTS §19b), so style foundation went first, then this feature.
+  Data-provenance rule (AGENTS §13): only render computed metrics.
+
+**Next**
+
+* Deeper styling passes (STYLE-GUIDE §38 Phases 2–3).
+* Retry `tests/api` live test once CelesTrak is back.
 
 ### 2026-08-28 — Style Phase 1 (Foundation): token-level instrument identity
 

@@ -13,6 +13,7 @@ import {
   filterAboveHorizon,
   rankByVisibility,
 } from "../services/observer-relative.ts";
+import { computeTonightSummary } from "../services/tonight.ts";
 import { resolveManualLocation, type ManualLocationInput } from "../domain/location.ts";
 
 /**
@@ -43,6 +44,7 @@ export function bootApp(app: HTMLElement): void {
       satellites: state.satellites,
       positions: state.positions,
       visibility: state.observerRelative,
+      tonight: state.tonight,
       view: state.view,
       selection: state.selection,
       onRetrySatellites: loadSatellites,
@@ -69,6 +71,7 @@ export function bootApp(app: HTMLElement): void {
         ? { kind: "acquired", observer: result.observer, source: "gps" }
         : { kind: "error", error: result.error };
       computeVisibility();
+      computeTonight();
       render();
     });
   }
@@ -81,6 +84,7 @@ export function bootApp(app: HTMLElement): void {
     state.location = { kind: "acquired", observer, source: "manual" };
     state.locationEntry = { kind: "closed" };
     computeVisibility();
+    computeTonight();
     render();
   }
 
@@ -102,6 +106,7 @@ export function bootApp(app: HTMLElement): void {
   function changeLocation(): void {
     state.location = { kind: "idle" };
     state.observerRelative = { kind: "idle" };
+    state.tonight = { kind: "idle" };
     render();
   }
 
@@ -122,6 +127,7 @@ export function bootApp(app: HTMLElement): void {
       state.satellites = { kind: "loaded", satellites: result.satellites };
       computePositions(result.satellites);
       computeVisibility();
+      computeTonight();
     } else {
       state.satellites = {
         kind: "error",
@@ -171,6 +177,27 @@ export function bootApp(app: HTMLElement): void {
   }
 
   /**
+   * Compute the VISIBLE TONIGHT pass prediction for the loaded satellites at
+   * the current location. Runs once both are available; expensive (searches
+   * time across the night) so it is only recomputed when location or the
+   * satellite set changes, not on every render.
+   */
+  function computeTonight(): void {
+    if (state.location.kind !== "acquired") return;
+    if (state.satellites.kind !== "loaded") return;
+
+    const summary = computeTonightSummary(
+      state.satellites.satellites,
+      state.location.observer,
+      new Date(),
+    );
+    state.tonight =
+      summary === null
+        ? { kind: "no-night" }
+        : { kind: "ready", summary };
+  }
+
+  /**
    * Open (or close) a satellite's detail panel. Single-open: selecting a
    * different satellite collapses the previously expanded one, and tapping the
    * currently-selected satellite collapses it.
@@ -189,7 +216,7 @@ export function bootApp(app: HTMLElement): void {
     render();
   }
 
-  /** Switch between the "All tracked" and "Visible now" satellite views. */
+  /** Switch between the "All tracked" and "VISIBLE TONIGHT" satellite views. */
   function setView(view: SatelliteView): void {
     state.view = view;
     render();

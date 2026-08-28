@@ -5,6 +5,7 @@ import type {
   SatelliteView,
   SelectedSatellite,
   LocationEntryState,
+  TonightState,
 } from "../app/state.ts";
 import type { LocationStatusState, PermissionState } from "./LocationStatus.ts";
 import type { ManualLocationInput } from "../domain/location.ts";
@@ -24,7 +25,9 @@ export interface DashboardProps {
   positions: PropagationState;
   /** The observer-relative (azimuth/elevation/range) results, when available. */
   visibility: VisibilityState;
-  /** Which satellite view ("All tracked" or "Visible now") is active. */
+  /** The VISIBLE TONIGHT pass prediction, when available. */
+  tonight: TonightState;
+  /** Which satellite view ("All tracked" or "VISIBLE TONIGHT") is active. */
   view: SatelliteView;
   /** The satellite (if any) whose detail panel is expanded. */
   selection: SelectedSatellite;
@@ -82,6 +85,7 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
     state: props.satellites,
     positions: props.positions,
     visibility: props.visibility,
+    tonight: props.tonight,
     onRetry: props.onRetrySatellites,
     view: props.view,
     selection: props.selection,

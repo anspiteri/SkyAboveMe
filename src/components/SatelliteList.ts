@@ -4,10 +4,12 @@ import type {
   VisibilityState,
   SatelliteView,
   SelectedSatellite,
+  TonightState,
 } from "../app/state.ts";
 import type { PropagateResult } from "../services/satellite-propagation.ts";
 import type { ObserverRelativePosition } from "../domain/visibility.ts";
 import type { EciVector } from "../domain/satellite.ts";
+import type { NextEvent, SatellitePass, BestObservingWindow } from "../domain/tonight.ts";
 import { altitudeKm, orbitalPeriodMinutes } from "../astronomy/orbit.ts";
 
 export type SatelliteListState =
@@ -22,7 +24,9 @@ export interface SatelliteListProps {
   positions: PropagationState;
   /** Observer-relative azimuth/elevation/range, shown once both are ready. */
   visibility: VisibilityState;
-  /** Which satellite view ("All tracked" or "Visible now") is active. */
+  /** The VISIBLE TONIGHT pass prediction, when available. */
+  tonight: TonightState;
+  /** Which satellite view ("All tracked" or "VISIBLE TONIGHT") is active. */
   view: SatelliteView;
   /** Whether the user has provided a location. */
   hasLocation: boolean;
@@ -37,8 +41,9 @@ export interface SatelliteListProps {
 
 /**
  * Shows the tracked satellites. Two views share the same tap-to-expand detail:
- * "All tracked" browses the full curated set; "Visible now" shows only satellites
- * above the horizon, ranked by how visible / how close they are right now.
+ * "All tracked" browses the full curated set; "VISIBLE TONIGHT" predicts what
+ * will pass above the horizon during the night (sunset → next sunrise), with a
+ * best observing window and next-events list.
  */
 export function renderSatelliteList(
   root: HTMLElement,
@@ -107,7 +112,7 @@ function loadedBody(
   if (props.view === "all") {
     wrap.append(renderAllView(props, satellites, positionsById, visibilityById));
   } else {
-    wrap.append(renderVisibleView(props, satellitesById, positionsById));
+    wrap.append(renderTonightView(props, satellitesById, positionsById));
   }
 
   return wrap;
@@ -120,7 +125,7 @@ function renderViewToggle(view: SatelliteView, onSetView: (v: SatelliteView) => 
   toggle.setAttribute("role", "tablist");
 
   const all = renderToggleButton("All tracked", "all", view === "all", onSetView);
-  const visible = renderToggleButton("Visible now", "visible", view === "visible", onSetView);
+  const visible = renderToggleButton("VISIBLE TONIGHT", "tonight", view === "tonight", onSetView);
 
   toggle.append(all, visible);
   return toggle;
@@ -172,54 +177,231 @@ function renderAllView(
   return wrap;
 }
 
-/** "Visible now": only above-horizon results, ranked by visibility, with detail. */
-function renderVisibleView(
+/**
+ * "VISIBLE TONIGHT": a prediction page for the coming night — a live "above
+ * you right now" snapshot, the best observing window, a next-events timeline and
+ * the per-satellite pass list. All numbers come from the computed summary
+ * (AGENTS.md §13, §19b); nothing is fabricated.
+ */
+function renderTonightView(
   props: SatelliteListProps,
   satellitesById: Map<number, Satellite>,
   positionsById: Map<number, PropagateResult>,
 ): HTMLDivElement {
   const wrap = document.createElement("div");
 
-  if (props.visibility.kind !== "ready") {
+  // Live right-now snapshot from the already-computed visibility results.
+  const live = props.visibility.kind === "ready" ? props.visibility.results.length : 0;
+  wrap.append(renderLiveNow(live, props.hasLocation));
+
+  if (props.tonight.kind === "idle") {
     if (!props.hasLocation) {
-      wrap.append(notice("No location set — set a location at the top to see what's above you."));
+      wrap.append(notice("No location set — set a location at the top to predict tonight's passes."));
     } else {
-      wrap.append(notice("Calculating what's visible right now…"));
+      wrap.append(notice("Calculating tonight's passes…"));
     }
     return wrap;
   }
 
-  const results = props.visibility.results;
-  if (results.length === 0) {
-    wrap.append(notice("Nothing above the horizon right now."));
+  if (props.tonight.kind === "no-night") {
+    wrap.append(notice("There's no distinct night at this location tonight (polar day/night)."));
     return wrap;
   }
 
-  const count = document.createElement("p");
-  count.className = "satellite-list__count";
-  count.textContent =
-    results.length === 1
+  const { summary } = props.tonight;
+
+  wrap.append(renderWindowBar(summary.window, summary.bestWindow));
+
+  const upcoming = summary.nextEvents;
+  if (upcoming.length === 0) {
+    wrap.append(notice("No satellite passes are predicted for the rest of tonight."));
+  } else {
+    wrap.append(renderNextEvents(upcoming, satellitesById));
+  }
+
+  wrap.append(
+    renderPassList(summary.passes, satellitesById, props.selection, props.onSelect, positionsById),
+  );
+
+  return wrap;
+}
+
+/** A compact "right now" snapshot shown above the prediction content. */
+function renderLiveNow(aboveCount: number, hasLocation: boolean): HTMLDivElement {
+  const box = document.createElement("div");
+  box.className = "tonight__live";
+
+  const label = document.createElement("span");
+  label.className = "tonight__live-label";
+  label.textContent = "Right now";
+
+  const value = document.createElement("span");
+  value.className = "tonight__live-value";
+  value.textContent = !hasLocation
+    ? "no location set"
+    : aboveCount === 1
       ? "1 satellite above the horizon"
-      : `${results.length} satellites above the horizon`;
+      : `${aboveCount} above the horizon`;
+
+  box.append(label, value);
+  return box;
+}
+
+/** The night window + best observing window (a suggested time to go outside). */
+function renderWindowBar(
+  window: { startUtc: Date; endUtc: Date },
+  best: BestObservingWindow | null,
+): HTMLDivElement {
+  const box = document.createElement("div");
+  box.className = "tonight__window";
+
+  const night = document.createElement("p");
+  night.className = "tonight__window-night";
+  night.textContent =
+    `Night: ${formatTime(window.startUtc)} – ${formatTime(window.endUtc)}`;
+
+  box.append(night);
+
+  if (best) {
+    const bestLine = document.createElement("p");
+    bestLine.className = "tonight__window-best";
+    bestLine.textContent =
+      `Best observing window: ${formatTime(best.startUtc)} – ${formatTime(best.endUtc)} ` +
+      `(up to ${best.peakSatellites} satellites at once)`;
+    box.append(bestLine);
+  }
+
+  return box;
+}
+
+/** The chronological next-events list for the rest of the night. */
+function renderNextEvents(
+  events: NextEvent[],
+  satellitesById: Map<number, Satellite>,
+): HTMLDivElement {
+  const heading = document.createElement("h3");
+  heading.className = "tonight__subheading";
+  heading.textContent = "Next events";
+
+  const ul = document.createElement("ul");
+  ul.className = "tonight__events";
+
+  for (const event of events) {
+    const satellite = satellitesById.get(event.noradId);
+    const name = satellite ? satellite.label : `#${event.noradId}`;
+
+    const li = document.createElement("li");
+    li.className = "tonight__event";
+
+    const time = document.createElement("span");
+    time.className = "tonight__event-time";
+    time.textContent = formatTime(event.timeUtc);
+
+    const kind = document.createElement("span");
+    kind.className = "tonight__event-kind";
+    kind.textContent = eventKindLabel(event);
+
+    const sat = document.createElement("span");
+    sat.className = "tonight__event-sat";
+    sat.textContent = name;
+
+    li.append(time, kind, sat);
+    ul.append(li);
+  }
+
+  const wrap = document.createElement("div");
+  wrap.append(heading, ul);
+  return wrap;
+}
+
+/** The full list of predicted passes, grouped per morning event for readability. */
+function renderPassList(
+  passes: SatellitePass[],
+  satellitesById: Map<number, Satellite>,
+  selection: SelectedSatellite,
+  onSelect: (noradId: number | null) => void,
+  positionsById: Map<number, PropagateResult>,
+): HTMLDivElement {
+  const wrap = document.createElement("div");
+
+  const heading = document.createElement("h3");
+  heading.className = "tonight__subheading";
+  heading.textContent = "Passes";
 
   const ul = document.createElement("ul");
   ul.className = "satellite-list__items";
 
-  for (const result of results) {
-    if (result.status !== "ok") continue;
-    const satellite = satellitesById.get(result.noradId);
+  for (const pass of passes) {
+    const satellite = satellitesById.get(pass.noradId);
     if (!satellite) continue;
-    // The result's own position is the live above-horizon position.
-    const live = new Map<number, ObserverRelativePosition>([
-      [result.noradId, result.position],
-    ]);
-    ul.append(
-      renderRow(props.selection, props.onSelect, satellite, positionsById, live),
+    // Reuse the tap-to-expand row so a pass can open the satellite's detail.
+    const live = new Map<number, ObserverRelativePosition>();
+    const li = renderSatellitePassRow(
+      selection,
+      onSelect,
+      satellite,
+      pass,
+      positionsById,
+      live,
     );
+    ul.append(li);
   }
 
-  wrap.append(count, ul);
+  wrap.append(heading, ul);
   return wrap;
+}
+
+/** One pass rendered as a labelled row; tapping it expands the satellite detail. */
+function renderSatellitePassRow(
+  selection: SelectedSatellite,
+  onSelect: (noradId: number | null) => void,
+  satellite: Satellite,
+  pass: SatellitePass,
+  positionsById: Map<number, PropagateResult>,
+  live: Map<number, ObserverRelativePosition>,
+): HTMLLIElement {
+  const li = document.createElement("li");
+  li.className = "satellite-list__item";
+
+  const selected = selection.kind === "selected" && selection.noradId === satellite.noradId;
+  if (selected) li.dataset.expanded = "true";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "satellite-list__tap";
+  button.setAttribute("aria-expanded", selected ? "true" : "false");
+  button.addEventListener("click", () =>
+    onSelect(selected ? null : satellite.noradId));
+
+  const name = document.createElement("span");
+  name.className = "satellite-list__name";
+  name.textContent = satellite.label;
+
+  const subtitle = document.createElement("span");
+  subtitle.className = "satellite-list__sub";
+  subtitle.textContent =
+    `${formatTime(pass.riseUtc)} rise · peak ${formatElevation(pass.maxElevationDeg)} at ` +
+    `${formatTime(pass.culminationUtc)} · ${formatTime(pass.setUtc)} set`;
+
+  const chevron = document.createElement("span");
+  chevron.className = "satellite-list__chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  chevron.textContent = selected ? "▾" : "▸";
+
+  const textWrap = document.createElement("span");
+  textWrap.className = "satellite-list__text";
+  textWrap.append(name, subtitle);
+
+  button.append(textWrap, chevron);
+  li.append(button);
+
+  if (selected) {
+    const position = positionsById.get(satellite.noradId);
+    const eci = position && position.status === "ok" ? position.position.position : null;
+    li.append(renderDetail(satellite, live.get(satellite.noradId) ?? null, eci));
+  }
+
+  return li;
 }
 
 /** Render one tappable satellite row (with chevron), plus its detail when open. */
@@ -379,6 +561,25 @@ function formatElevation(elevationDeg: number): string {
   return elevationDeg < 0
     ? `${rounded}° below horizon`
     : `${rounded}° above horizon`;
+}
+
+/** A short present-tense label for a next-event kind. */
+function eventKindLabel(event: NextEvent): string {
+  switch (event.kind) {
+    case "rise":
+      return "rise";
+    case "set":
+      return "set";
+    case "culmination":
+      return event.maxElevationDeg !== undefined
+        ? `peak ${Math.round(event.maxElevationDeg)}°`
+        : "peak";
+  }
+}
+
+/** Format a date as a short local time, e.g. "21:42". */
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 interface InfoBannerProps {
