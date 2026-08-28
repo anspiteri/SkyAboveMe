@@ -4,6 +4,7 @@ import { createInitialState } from "./state.ts";
 import { getCurrentLocation } from "../services/geolocation.ts";
 import { fetchSatelliteData } from "../services/satellite-data.ts";
 import { propagateSatellites } from "../services/satellite-propagation.ts";
+import { computeObserverRelativePositions } from "../services/observer-relative.ts";
 
 /**
  * Boot the application into the given mount element.
@@ -22,6 +23,7 @@ export function bootApp(app: HTMLElement): void {
       location: state.location,
       satellites: state.satellites,
       positions: state.positions,
+      visibility: state.observerRelative,
       onRetrySatellites: loadSatellites,
     });
   }
@@ -34,6 +36,7 @@ export function bootApp(app: HTMLElement): void {
     if (result.ok) {
       state.satellites = { kind: "loaded", satellites: result.satellites };
       computePositions(result.satellites);
+      computeVisibility();
     } else {
       state.satellites = {
         kind: "error",
@@ -55,10 +58,35 @@ export function bootApp(app: HTMLElement): void {
     };
   }
 
+  /**
+   * Turn the propagated ECI positions into observer-relative azimuth/elevation/
+   * range results. Does nothing until the observer location has been acquired
+   * and the satellites have propagated.
+   */
+  function computeVisibility(): void {
+    if (state.location.kind !== "acquired") return;
+    if (state.positions.kind !== "ready") return;
+
+    const okPositions = state.positions.results
+      .filter((r): r is Extract<typeof r, { status: "ok" }> => r.status === "ok")
+      .map((r) => r.position);
+
+    const now = new Date();
+    state.observerRelative = {
+      kind: "ready",
+      results: computeObserverRelativePositions(
+        state.location.observer,
+        okPositions,
+      ),
+      computedAt: now.getTime(),
+    };
+  }
+
   void getCurrentLocation().then((result) => {
     state.location = result.ok
       ? { kind: "acquired", observer: result.observer }
       : { kind: "error", error: result.error };
+    computeVisibility();
     render();
   });
 

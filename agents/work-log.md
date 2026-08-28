@@ -15,9 +15,10 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phase 4 (Propagation) done — SGP4 wired in, current ECI position
-> computed per satellite and shown. Next up: Phase 5 (Observer-relative
-> position → altitude/azimuth/distance).
+> **Status:** Phase 4 (Propagation) and Phase 5 (Observer-relative position) done —
+> satellites are propagated with SGP4 then converted to azimuth/elevation/range
+> against the observer. Dashboard shows each satellite's az/el/range. Next up:
+> Phase 6 (Horizon filtering → altitude > 0°).
 >
 > **Today's date:** 2026-08-28
 
@@ -25,7 +26,55 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Entries (newest first)
 
-### 2026-08-28 — Phase 4: Propagation (SGP4)
+### 2026-08-28 — Phase 5: Observer-relative position
+
+**What**
+
+* `src/utils/angles.ts` — generic degree/radian conversions + `normalizeDegrees`/
+  `normalizeRadians` (created the utils dir).
+* `src/domain/visibility.ts` — `ObserverRelativePosition` (elevationDeg,
+  azimuthDeg, rangeKm).
+* `src/astronomy/observer.ts` — WGS84 geodetic→ECEF: `geodeticToEcf()` +
+  `getObserverPosition()`; exports `WGS84_A/F/E2`.
+* `src/astronomy/coordinates.ts` — pure transforms: `gmstRadians(date)`,
+  `eciToEcf(eci, gmst)`, `calculateTopocentricPosition(lat, lon, obsEcf, satEcf)`.
+* `src/services/observer-relative.ts` — `computeObserverRelativePositions()`
+  runs the frame chain ECI → (GMST rotation) → ECEF → ENU → az/el/range.
+* `src/app/state.ts` — added `VisibilityState` (`idle` | `ready`) to `AppState`.
+* `src/app/app.ts` — `computeVisibility()` runs when both the observer location
+  (acquired) and propagated positions (ready) are present.
+* `src/components/Dashboard.ts` + `SatelliteList.ts` — forward `visibility` and
+  render `<az> · <el> above/below horizon · <range> km` per satellite, falling
+  back to the ECI position while visibility is idle.
+
+**Why**
+
+* Implemented the frame transforms as local pure functions (`src/astronomy/`)
+  instead of pulling more of satellite.js in, keeping astronomy self-contained
+  and independently testable (AGENTS.md §7, §16) and avoiding extra Vite shim
+  surface. Cross-checked against satellite.js in tests.
+* Explicit coordinate-system names/comments (AGENTS.md §10): TemeECI → ECEF →
+  topocentric ENU.
+
+**Tests (15 new; 37 total passing)**
+
+* `tests/astronomy/observer_test.ts` (5): equator/prime-meridian/pole references,
+  cross-check vs satellite.js `geodeticToEcf`, height effect.
+* `tests/astronomy/coordinates_test.ts` (5): `gmstRadians` vs `gstime`,
+  `eciToEcf` vs `eciToEcf`, topocentric vs `ecfToLookAngles`, due-east-on-horizon,
+  domain bounds.
+* `tests/services/observer-relative_test.ts` (5): mapping/ordering, bounds,
+  empty set, plausible LEO range, multi-satellite.
+
+Verification: `deno task typecheck` ✓, `deno task build` ✓ (29.77 kB JS / 13.51 gzip),
+`deno task test` ✓ 37/37, dev-server smoke (page 200, `/api/satellites` proxy 200,
+12 satellites) ✓, stale processes cleaned.
+
+**Next**
+
+* Phase 6 — Horizon filtering: only display satellites with altitude > 0°.
+
+---
 
 **What**
 
@@ -72,8 +121,8 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 **Next**
 
-* Phase 5 — Observer-relative position: ECI → ECEF → topocentric using the
-  observer, yielding altitude/azimuth/distance, with reference-value tests.
+* Phase 6 — Horizon filtering: only display satellites above the horizon
+  (altitude > 0°).
 
 ---
 
@@ -117,8 +166,8 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 **Next**
 
-* Phase 4 (Propagation) and Phase 5 (Observer-relative) — Phase 4 done; Phase 5
-  converts the current ECI position into altitude/azimuth/distance.
+* Phase 4 (Propagation) and Phase 5 (Observer-relative) — both done; Phase 6
+  filters by horizon and Phase 7 introduces the ranking layer.
 
 ---
 
