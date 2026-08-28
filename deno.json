@@ -14,6 +14,8 @@
     "dev": "deno task dev:api & deno task dev:vite",
     "dev:vite": "deno run -A npm:vite",
     "dev:api": "deno run --allow-net scripts/dev-api.ts",
+    "dev:mock": "deno task dev:api:mock & deno task dev:vite",
+    "dev:api:mock": "deno run --allow-net scripts/dev-api-mock.ts",
     "build": "deno run -A npm:vite build",
     "preview": "deno run -A npm:vite preview",
     "typecheck": "deno check src api",
