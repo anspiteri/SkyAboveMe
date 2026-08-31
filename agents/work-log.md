@@ -15,22 +15,30 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Deployed to Vercel + **STYLE Phases 2 & 3 (Information language +
-> VISIBLE TONIGHT restyle) done** on branch `style/information-language`. The
-> whole dashboard now speaks the instrument language from STYLE-GUIDE.md §38:
-> header is a small uppercase nameplate (`SKY ABOVE ME` / `LOCAL OBSERVATION
-> SYSTEM`); location status is a compact `● ONLINE/ACQUIRING/READY/UNAVAILABLE`
-> strip with outlined amber instrument controls; the view switch is a flat
-> labelled instrument switch (amber underline for the active view, no bubbly
-> pill); "All tracked" rows are aligned name / live az·elev·range columns with a
-> cyan object accent; the detail panel is a ruled dt/dd readout; and the
-> already-built VISIBLE TONIGHT page is restyled to the guide's layout (amber
-> observation window bar, aligned next-events timeline, instrument pass rows).
-> No computation changed — all metrics remain data-proven. Verified: `typecheck`
-> ✓, `build` ✓ (CSS 8.43→11.51 kB), `deno task dev:mock` serves the app + fixtures.
-> **Next:** commit & push `style/information-language`; visual QA on a phone;
-> then the deferred STYLE Phase 4 (atmosphere — grid, glyphs, reticle motifs) as
-> a separate pass.
+> **Status:** Deployed to **Deno Deploy** (migration in from `main`) + **STYLE
+> Phases 2 & 3 (Information language + VISIBLE TONIGHT restyle) done** on this
+> branch (`style/information-language`). The whole app now ships as a single
+> **dynamic** Deno Deploy app served by a new root `main.ts` entrypoint
+> (`Deno.serve`): `/api/satellites` delegates to the existing proxy, and every
+> other path serves the Vite `dist/` build with an SPA fallback to `index.html`.
+> The Vercel-era scaffolding (`vercel.json`, `package.json`, `package-lock.json`)
+> and the `nodeModulesDir: true`/`--no-config` compat hacks are gone — root
+> `deno.json` is back to `nodeModulesDir: "auto"` with a `deploy` block. And the
+> dashboard speaks the instrument language from STYLE-GUIDE.md §38: header is a
+> small uppercase nameplate (`SKY ABOVE ME` / `LOCAL OBSERVATION SYSTEM`);
+> location status is a compact `● ONLINE/ACQUIRING/READY/UNAVAILABLE` strip with
+> outlined amber instrument controls; the view switch is a flat labelled
+> instrument switch (amber underline for the active view, no bubbly pill); "All
+> tracked" rows are aligned name / live az·elev·range columns with a cyan object
+> accent; the detail panel is a ruled dt/dd readout; and the already-built
+> VISIBLE TONIGHT page is restyled to the guide's layout (amber observation
+> window bar, aligned next-events timeline, instrument pass rows). No computation
+> changed — all metrics remain data-proven. Verified: `typecheck` ✓, `build` ✓,
+> tests **74 pass / 1 fail** (only the live CelesTrak outage test), and `main.ts`
+> serves the SPA + `/api/satellites` + Permissions-Policy correctly.
+> **Next:** visual QA on a phone (touch targets, contrast, tonight layout); then
+> the deferred STYLE Phase 4 (atmosphere — grid, glyphs, reticle motifs) as a
+> separate pass; retry the live `tests/api` once CelesTrak returns.
 >
 > **Today's date:** 2026-08-31
 
@@ -82,6 +90,64 @@ next steps so the next agent can pick up without re-reading the whole repo.
   annotations) as a later separate pass.
 * Retry live `tests/api` once CelesTrak returns.
 
+### 2026-08-31 — Migrate deployment from Vercel to Deno Deploy
+
+**What**
+
+* `main.ts` (new) — Deno Deploy entrypoint ("dynamic" runtime): a single
+  `Deno.serve` process that serves `/api/satellites` from the existing
+  `api/satellites.ts` proxy and serves the built `dist/` for every other path,
+  with an SPA fallback to `dist/index.html`. Adds the Strict `Permissions-Policy`
+  header on all responses (was in `vercel.json`).
+* `deno.json` — `nodeModulesDir: "auto"` (was the Vercel-only `true`); removed
+  the unused `typescript` import; added `@std/http/file-server` and a `deploy`
+  block (`build: "deno task build"`, `runtime: { type: "dynamic", entrypoint:
+  "./main.ts" }`); added a `serve` task (`deno run --allow-net --allow-read
+  main.ts`) and stopped listing `preview` (replaced by `serve`).
+* Deleted `vercel.json`, `package.json`, `package-lock.json` — all existed only
+  to make Vercel's `npm ci` + Deno function build work.
+* `vite.config.ts` — comment updated (prod paths now served by Deno Deploy /
+  `main.ts`). The satellite.js WASM-avoidance alias is kept as-is: it is a
+  genuine Vite bundling detail, not a Vercel hack, and works identically under
+  Deno's managed node_modules on both local and Deno Deploy.
+* `agents/AGENTS.md` (untracked) — §4 diagram + §8 structure + §12 prod header +
+  §20 backend policy updated from Vercel to Deno Deploy / `main.ts`.
+* `agents/v2.md` (untracked) — deployment bullet updated.
+
+**Why**
+
+* Vercel was not working for this project: the community `vercel-deno@3.2.0`
+  runtime bundles Deno v1.44.4 (needs boolean `nodeModulesDir`, hence the
+  `true`-compat workaround) and hard-globs `node_modules/.deno/**` into the
+  function output, which grew past Vercel's 250 MB uncompressed limit (709 MB).
+  Deno Deploy runs the modern Deno runtime natively and serves both the API and
+  the static frontend from one edge process, so the entire npm/`package-lock`/
+  function-size compromise layer is redundant and was removed.
+* The migration also restores the clean Deno-native scaffolding that predated
+  Vercel (per the 2026-08-28 entries): no `package.json`, `nodeModulesDir:
+  "auto"`, no shebang/config shims.
+
+**Verified**
+
+* `deno task typecheck` ✓ (now also covers `main.ts`).
+* `deno task build` ✓ — `dist/` identical to main (`index-BDSTd0_7.js`,
+  `index-B8HEkHDy.css`) — no frontend regression.
+* `deno task test` → **74 passed / 1 failed** (only the pre-existing live
+  CelesTrak outage test in `tests/api/satellites_test.ts`; CelesTrak still down).
+* `deno run --allow-net --allow-read main.ts` smoke test: `/` → index.html 200,
+  `/favicon.svg` → 200, `/assets/*.js` → 200, `/api/satellites` → 200
+  application/json, `Permissions-Policy` header present, SPA fallback path →
+  200 index.html.
+
+**Next**
+
+* User creates a Deno Deploy project in the dashboard linked to `anspiteri/
+  SkyAboveMe`; because app config lives in `deno.json`'s `deploy` block, the
+  dashboard sources it from source (build `deno task build`, entrypoint
+  `main.ts`, dynamic runtime). Deploys automatically on push to `main`.
+* Retry the live `tests/api` once CelesTrak returns.
+* Resume the deferred STYLE work on `style/information-language` (Phases 2–3 are
+  already committed there; loop back after deployment is stable).
 
 ### 2026-08-28 — Final fix: root deno.json compatible with the old build-time Deno v1.44.4
 
