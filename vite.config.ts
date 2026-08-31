@@ -18,7 +18,7 @@ export default defineConfig({
       "Permissions-Policy": "geolocation=(self), camera=(), microphone=()",
     },
     // In development the satellite proxy runs locally (see scripts/dev-api.ts).
-    // In production the same endpoints are served by Vercel Functions.
+    // In production the same endpoints are served by Deno Deploy (see main.ts).
     proxy: {
       "/api": "http://localhost:8787",
     },
