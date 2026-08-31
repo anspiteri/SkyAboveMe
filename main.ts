@@ -10,9 +10,10 @@
  * `/api/satellites` and no observer coordinates leave the device.
  */
 import { serveDir } from "@std/http/file-server";
-import apiHandler from "./api/satellites.ts";
+import apiHandler, { celestrakDiagnostic } from "./api/satellites.ts";
 
 const API_PATH = "/api/satellites";
+const DIAGNOSTIC_PATH = "/api/_celestrak-check";
 const DIST_ROOT = `${import.meta.dirname}/dist`;
 
 const PERMISSIONS_POLICY = "geolocation=(self), camera=(), microphone=()";
@@ -31,6 +32,10 @@ Deno.serve({ onListen: () => {} }, handler);
 
 async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
+
+  if (url.pathname === DIAGNOSTIC_PATH && request.method === "GET") {
+    return withHeaders(await celestrakDiagnostic());
+  }
 
   if (url.pathname === API_PATH) {
     return withHeaders(await apiHandler(request));

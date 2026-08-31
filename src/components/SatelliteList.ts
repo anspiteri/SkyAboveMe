@@ -6,6 +6,7 @@ import type {
   SelectedSatellite,
   TonightState,
 } from "../app/state.ts";
+import type { SatelliteDataSource } from "../services/satellite-data.ts";
 import type { PropagateResult } from "../services/satellite-propagation.ts";
 import type { ObserverRelativePosition } from "../domain/visibility.ts";
 import type { EciVector } from "../domain/satellite.ts";
@@ -14,7 +15,7 @@ import { altitudeKm, orbitalPeriodMinutes } from "../astronomy/orbit.ts";
 
 export type SatelliteListState =
   | { kind: "loading" }
-  | { kind: "loaded"; satellites: Satellite[] }
+  | { kind: "loaded"; satellites: Satellite[]; source: SatelliteDataSource; stale: boolean }
   | { kind: "empty" }
   | { kind: "error"; message: string };
 
@@ -88,7 +89,7 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
       });
     }
     case "loaded": {
-      return loadedBody(props, state.satellites);
+      return loadedBody(props, state.satellites, state.source, state.stale);
     }
   }
 }
@@ -96,6 +97,8 @@ function bodyFor(props: SatelliteListProps): HTMLElement {
 function loadedBody(
   props: SatelliteListProps,
   satellites: Satellite[],
+  source: SatelliteDataSource,
+  stale: boolean,
 ): HTMLDivElement {
   const wrap = document.createElement("div");
 
@@ -107,6 +110,8 @@ function loadedBody(
   const positionsById = byId(props.positions);
   const visibilityById = visibilityByIdMap(props.visibility);
 
+  const provenance = renderProvenanceNotice(source, stale);
+  if (provenance !== null) wrap.append(provenance);
   wrap.append(renderViewToggle(props.view, props.onSetView));
 
   if (props.view === "all") {
@@ -523,6 +528,47 @@ function notice(text: string): HTMLParagraphElement {
   p.className = "satellite-list__notice";
   p.textContent = text;
   return p;
+}
+
+/**
+ * A message shown whenever the displayed positions are NOT derived from current,
+ * live orbital elements — so the sky is never silently presented as live when it
+ * isn't (AGENTS.md §13, §17). Two tiers:
+ *   - fallback snapshot: prominent banner — the data is bundled placeholder, not
+ *     live or even fresh-cached, so positions should be treated as approximate.
+ *   - stale cache: a slim one-line notice — the data is real but older than the
+ *     freshness window, so it may be slightly out of date.
+ */
+function renderProvenanceNotice(
+  source: SatelliteDataSource,
+  stale: boolean,
+): HTMLElement | null {
+  if (source === "fallback") {
+    const wrap = document.createElement("div");
+    wrap.className = "satellite-list__banner";
+
+    const title = document.createElement("p");
+    title.className = "satellite-list__banner-title";
+    title.textContent = "Showing placeholder satellite data";
+
+    const body = document.createElement("p");
+    body.className = "satellite-list__banner-body";
+    body.textContent =
+      "We can't reach the live orbital data source right now, so this is a saved " +
+      "placeholder — not real live data. Positions are an approximation until live " +
+      "data is available again.";
+
+    wrap.append(title, body);
+    return wrap;
+  }
+
+  if (source === "cache" && stale) {
+    return notice(
+      "Showing cached orbital data — the live source is unavailable, so positions may be out of date.",
+    );
+  }
+
+  return null;
 }
 
 /** Index propagation results by NORAD catalogue number. */
