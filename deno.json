@@ -7,7 +7,7 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
-    "lib": ["ES2023", "DOM", "DOM.Iterable", "deno.ns"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "deno.ns", "deno.unstable"],
     "types": ["vite/client"]
   },
   "tasks": {
@@ -19,7 +19,8 @@
     "build": "deno run -A npm:vite build",
     "serve": "deno run --allow-net --allow-read main.ts",
     "typecheck": "deno check src api main.ts",
-    "test": "deno test --allow-read --allow-env --allow-net"
+    "test": "deno test --allow-read --allow-env --allow-net",
+    "test:live": "deno test --allow-read --allow-env --allow-net tests/api/satellites.live.ts"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.19",

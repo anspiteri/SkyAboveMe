@@ -235,7 +235,7 @@ function satelliteDataMessage(error: SatelliteDataError): string {
     case "network":
       return "We couldn't reach the satellite data service. This is usually a short-lived network or server problem — try again in a moment.";
     case "server":
-      return "The satellite data service hit a problem. This often means the orbital data source (CelesTrak) is temporarily unavailable — try again shortly.";
+      return "The orbital data source (CelesTrak) is busy or temporarily unavailable, so satellite data is paused for a few minutes. We cache data and back off automatically, so just try again shortly.";
     case "malformed":
       return "The satellite data came back in an unexpected format, so we couldn't display it. Please try again in a moment.";
   }
