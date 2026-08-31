@@ -49,9 +49,33 @@ Deno.test("fetchSatelliteData returns satellites on a well-formed response", asy
   assertEquals(result.ok, true);
   if (result.ok) {
     assertEquals(result.satellites.length, 1);
+    // No provenance headers => treat as fresh live data.
+    assertEquals(result.source, "celestrak");
+    assertEquals(result.stale, false);
     const [sat] = result.satellites;
     assertObjectMatch(sat ?? {}, { noradId: 25544, label: "ISS" });
     assertEquals(sat?.elements.inclinationDeg, 51.6325);
+  }
+  restoreFetch();
+});
+
+Deno.test("fetchSatelliteData reads provenance headers for fallback/stale data", async () => {
+  setFetch(async () =>
+    new Response(JSON.stringify(SAMPLE_PAYLOAD), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Satellite-Data-Source": "fallback",
+        "X-Satellite-Data-Stale": "true",
+      },
+    })
+  );
+
+  const result = await fetchSatelliteData();
+  assertEquals(result.ok, true);
+  if (result.ok) {
+    assertEquals(result.source, "fallback");
+    assertEquals(result.stale, true);
   }
   restoreFetch();
 });

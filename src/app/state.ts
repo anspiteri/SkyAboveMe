@@ -1,5 +1,6 @@
 import type { LocationStatusState } from "../components/LocationStatus.ts";
 import type { Satellite } from "../domain/satellite.ts";
+import type { SatelliteDataSource } from "../services/satellite-data.ts";
 import type { PropagateResult } from "../services/satellite-propagation.ts";
 import type { ObserverRelativeResult } from "../services/observer-relative.ts";
 import type { TonightSummary } from "../domain/tonight.ts";
@@ -56,7 +57,7 @@ export type SelectedSatellite =
 
 export type SatelliteDataState =
   | { kind: "loading" }
-  | { kind: "loaded"; satellites: Satellite[] }
+  | { kind: "loaded"; satellites: Satellite[]; source: SatelliteDataSource; stale: boolean }
   | { kind: "empty" }
   | { kind: "error"; message: string };
 

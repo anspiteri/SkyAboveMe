@@ -124,7 +124,12 @@ export function bootApp(app: HTMLElement): void {
         render();
         return;
       }
-      state.satellites = { kind: "loaded", satellites: result.satellites };
+      state.satellites = {
+        kind: "loaded",
+        satellites: result.satellites,
+        source: result.source,
+        stale: result.stale,
+      };
       computePositions(result.satellites);
       computeVisibility();
       computeTonight();

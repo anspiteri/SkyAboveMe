@@ -11,8 +11,10 @@ import type { Satellite, SatelliteElements } from "../domain/satellite.ts";
 
 export type SatelliteDataError = "network" | "server" | "malformed";
 
+export type SatelliteDataSource = "celestrak" | "cache" | "fallback";
+
 export type SatelliteDataResult =
-  | { ok: true; satellites: Satellite[] }
+  | { ok: true; satellites: Satellite[]; source: SatelliteDataSource; stale: boolean }
   | { ok: false; error: SatelliteDataError };
 
 const API_PATH = "/api/satellites";
@@ -58,7 +60,12 @@ export async function fetchSatelliteData(): Promise<SatelliteDataResult> {
     return { ok: false, error: "malformed" };
   }
 
-  return { ok: true, satellites };
+  const source: SatelliteDataSource =
+    (response.headers.get("X-Satellite-Data-Source") as SatelliteDataSource) ??
+    "celestrak";
+  const stale = response.headers.get("X-Satellite-Data-Stale") === "true";
+
+  return { ok: true, satellites, source, stale };
 }
 
 /** Lightweight validator: any record missing a required field is discarded. */

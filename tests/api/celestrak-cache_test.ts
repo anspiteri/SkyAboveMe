@@ -59,6 +59,11 @@ const FAST_DEPS = {
   concurrency: CURATED_NORAD_IDS.length,
 };
 
+function failFetch() {
+  return (_url: string | URL | Request) =>
+    Promise.reject(new Error("CelesTrak unreachable"));
+}
+
 function afterEach(): void {
   _resetInflightForTests();
 }
@@ -84,8 +89,10 @@ Deno.test("serves fresh cached data without touching upstream", async () => {
       ...FAST_DEPS,
     });
 
-    assert(result, "expected satellites");
-    assertEquals(result.length, 1);
+    assert(result);
+    assertEquals(result.satellites.length, 1);
+    assertEquals(result.source, "cache");
+    assertEquals(result.stale, false);
     assertEquals(calls, 0);
   } finally {
     afterEach();
@@ -110,7 +117,9 @@ Deno.test("populates the cache on a cold miss", async () => {
       ...FAST_DEPS,
     });
 
-    assert(result, "expected satellites");
+    assert(result);
+    assertEquals(result.source, "celestrak");
+    assertEquals(result.stale, false);
     assertEquals(calls, CURATED_NORAD_IDS.length);
 
     // A second call must now be served entirely from cache.
@@ -122,8 +131,9 @@ Deno.test("populates the cache on a cold miss", async () => {
       upstreamTtlMs: 6 * 3600 * 1000,
       ...FAST_DEPS,
     });
-    assert(again, "expected satellites on second call");
-    assertEquals(again.length, CURATED_NORAD_IDS.length);
+    assert(again);
+    assertEquals(again.source, "cache");
+    assertEquals(again.satellites.length, CURATED_NORAD_IDS.length);
     assertEquals(calls, before);
   } finally {
     afterEach();
@@ -159,8 +169,10 @@ Deno.test("coalesces concurrent misses into one upstream batch", async () => {
     release();
     const [a, b] = await Promise.all([first, second]);
 
-    assert(a, "expected satellites");
-    assert(b, "expected satellites");
+    assert(a);
+    assert(b);
+    assertEquals(a.source, "celestrak");
+    assertEquals(b.source, "celestrak");
     // One shared batch only, even though two requests missed the cache.
     assertEquals(calls, CURATED_NORAD_IDS.length);
   } finally {
@@ -168,7 +180,7 @@ Deno.test("coalesces concurrent misses into one upstream batch", async () => {
   }
 });
 
-Deno.test("serves stale data when upstream fails", async () => {
+Deno.test("serves stale cached data when upstream fails", async () => {
   try {
     let t = 0;
     const cache = createMemoryCache<unknown>(() => t);
@@ -176,67 +188,58 @@ Deno.test("serves stale data when upstream fails", async () => {
     await cache.set("curated-satellites", seeded, 10 * 3600 * 1000);
     t = 7 * 3600 * 1000; // advance beyond the 6h freshness window
 
-    const fetch = () => {
-      throw new Error("CelesTrak unreachable");
-    };
-
     const result = await fetchCuratedSatellites({
       cache,
-      fetch,
+      fetch: failFetch(),
       now: () => t,
       upstreamTtlMs: 6 * 3600 * 1000,
       ...FAST_DEPS,
     });
 
-    assert(result, "expected stale satellites");
-    assertEquals(result.length, 1);
-    assertEquals(result[0]?.noradId, 25544);
+    assert(result);
+    assertEquals(result.source, "cache");
+    assertEquals(result.stale, true);
+    assertEquals(result.satellites.length, 1);
+    assertEquals(result.satellites[0]?.noradId, 25544);
   } finally {
     afterEach();
   }
 });
 
-Deno.test("returns null when there is no data and upstream fails", async () => {
+Deno.test("serves bundled snapshot fallback when there is no data and upstream fails", async () => {
   try {
     const t = 0;
     const cache = createMemoryCache<unknown>(() => t);
-    const fetch = () => {
-      throw new Error("CelesTrak unreachable");
-    };
 
     const result = await fetchCuratedSatellites({
       cache,
-      fetch,
+      fetch: failFetch(),
       now: () => t,
       upstreamTtlMs: 6 * 3600 * 1000,
       ...FAST_DEPS,
     });
 
-    assertEquals(result, null);
+    assert(result);
+    assertEquals(result.source, "fallback");
+    assertEquals(result.stale, true);
+    assert(result.satellites.length > 0, "expected a non-empty snapshot");
+    // The snapshot is one curated entry per NORAD ID.
+    assertEquals(result.satellites.length, CURATED_NORAD_IDS.length);
   } finally {
     afterEach();
   }
 });
 
-Deno.test("retries once on 429 then succeeds", async () => {
+Deno.test("stops on 429 without retrying (per CelesTrak policy)", async () => {
   try {
     const t = 0;
     const cache = createMemoryCache<unknown>(() => t);
-    const perNorad: Record<number, number> = {};
     let calls = 0;
-
-    const fetch = (_url: string | URL | Request) => {
+    const fetch = () => {
       calls++;
-      const norad =
-        Number(new URL(String(_url)).searchParams.get("CATNR")) || 1;
-      perNorad[norad] = (perNorad[norad] ?? 0) + 1;
-      // First attempt is throttled, second succeeds.
-      if (perNorad[norad] === 1) {
-        return Promise.resolve(
-          new Response("rate limited", { status: 429, headers: { "Retry-After": "0" } }),
-        );
-      }
-      return Promise.resolve(ommResponse(norad));
+      return Promise.resolve(
+        new Response("rate limited", { status: 429, headers: { "Retry-After": "0" } }),
+      );
     };
 
     const result = await fetchCuratedSatellites({
@@ -247,9 +250,95 @@ Deno.test("retries once on 429 then succeeds", async () => {
       ...FAST_DEPS,
     });
 
-    assert(result, "expected satellites after retry");
-    assertEquals(result.length, CURATED_NORAD_IDS.length);
-    assertEquals(calls, CURATED_NORAD_IDS.length * 2);
+    assert(result);
+    // No upstream data; fall back to the snapshot.
+    assertEquals(result.source, "fallback");
+    // Exactly one attempt per satellite — no retry on 429.
+    assertEquals(calls, CURATED_NORAD_IDS.length);
+  } finally {
+    afterEach();
+  }
+});
+
+Deno.test("opens the circuit breaker after consecutive failed refreshes", async () => {
+  try {
+    // Use a fixed future timestamp so breaker cooldowns with cooldownMs=0 still
+    // behave deterministically.
+    const T0 = 1_000_000_000;
+    const t = T0;
+    const cache = createMemoryCache<unknown>(() => t);
+    const deps = {
+      cache,
+      fetch: failFetch(),
+      now: () => t,
+      upstreamTtlMs: 6 * 3600 * 1000,
+      cooldownMs: 0,
+      breakerFailureThreshold: 2,
+      ...FAST_DEPS,
+    };
+
+    // First failure: recorded, stays below threshold (cooldown 0 so not open).
+    const one = await fetchCuratedSatellites(deps);
+    assert(one);
+    assertEquals(one.source, "fallback");
+
+    const breakerAfterOne = await cache.get("celestrak-breaker");
+    const stateOne = breakerAfterOne?.value as { openUntil: number; failures: number };
+    assertEquals(stateOne.failures, 1);
+    assertEquals(stateOne.openUntil, 0);
+
+    // Second consecutive failure: trips the breaker open.
+    const two = await fetchCuratedSatellites(deps);
+    assert(two);
+    assertEquals(two.source, "fallback");
+
+    const breakerAfterTwo = await cache.get("celestrak-breaker");
+    const stateTwo = breakerAfterTwo?.value as { openUntil: number; failures: number };
+    assertEquals(stateTwo.failures, 0);
+    assert(stateTwo.openUntil > T0, "breaker should be open");
+
+    // While the breaker is open, upstream is NOT contacted at all.
+    let upstreamCalls = 0;
+    const spyFetch = () => {
+      upstreamCalls++;
+      return Promise.resolve(ommResponse(1));
+    };
+    const results = await Promise.all([
+      fetchCuratedSatellites({ ...deps, fetch: spyFetch }),
+      fetchCuratedSatellites({ ...deps, fetch: spyFetch }),
+    ]);
+    assert(results[0]);
+    assert(results[1]);
+    assertEquals(upstreamCalls, 0, "breaker open must not touch upstream");
+  } finally {
+    afterEach();
+  }
+});
+
+Deno.test("does not retry on 5xx (per CelesTrak policy)", async () => {
+  try {
+    const t = 0;
+    const cache = createMemoryCache<unknown>(() => t);
+    let calls = 0;
+    const fetch = () => {
+      calls++;
+      return Promise.resolve(
+        new Response("server error", { status: 503 }),
+      );
+    };
+
+    const result = await fetchCuratedSatellites({
+      cache,
+      fetch,
+      now: () => t,
+      upstreamTtlMs: 6 * 3600 * 1000,
+      ...FAST_DEPS,
+    });
+
+    assert(result);
+    assertEquals(result.source, "fallback");
+    // One attempt per satellite, no retry on 5xx.
+    assertEquals(calls, CURATED_NORAD_IDS.length);
   } finally {
     afterEach();
   }
