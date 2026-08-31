@@ -5,14 +5,15 @@
 <h1 align="center">Sky Above Me</h1>
 
 <p align="center">
-  <strong>What is happening above me right now, and what will be interesting to see soon?</strong>
+  <strong>Which satellites are worth watching tonight?</strong>
 </p>
 
 Sky Above Me is a small, mobile-first web application developed with OpenCode.
 
 This app combines the user's current location and device time with public
-satellite orbital data, propagates satellite positions with SGP4, and shows
-what is currently above the observer's horizon as a single scrollable dashboard.
+satellite orbital data, propagates satellite positions with SGP4, and works out
+which satellites will pass overhead through the coming night — the best time to
+look up — as a single scrollable dashboard.
 
 It is a personal "what's above me?" observatory that starts with Earth-orbiting
 satellites. The long-term vision may grow to cover stars, planets, the Moon,
