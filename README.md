@@ -8,15 +8,11 @@
   <strong>What is happening above me right now, and what will be interesting to see soon?</strong>
 </p>
 
-<p align="center">
-  <a href="https://github.com/anspiteri/SkyAboveMe"><img src="https://img.shields.io/badge/deployment-live-blue" alt="Deployment status"></a>
-</p>
+Sky Above Me is a small, mobile-first web application developed with OpenCode.
 
-
-Sky Above Me is a small, mobile-first web application that combines the user's
-current location and device time with public satellite orbital data, propagates
-satellite positions with SGP4, and shows what is currently above the observer's
-horizon as a single scrollable dashboard.
+This app combines the user's current location and device time with public
+satellite orbital data, propagates satellite positions with SGP4, and shows
+what is currently above the observer's horizon as a single scrollable dashboard.
 
 It is a personal "what's above me?" observatory that starts with Earth-orbiting
 satellites. The long-term vision may grow to cover stars, planets, the Moon,
@@ -31,9 +27,9 @@ small** and focused on satellites.
   → observer-relative position → mobile dashboard.
 - Shows two satellite views behind a segmented toggle:
 
-  - **Visible now** — only above-horizon objects, ranked by what is most
-    visible / closest right now (elevation descending, then range ascending;
-    a transparent, entirely data-driven sort).
+  - **Visible Tonight** — pass prediction for the coming night: propagates
+    each satellite across sunset → next sunrise, derives the best observing
+    window and ordered upcoming passes, and shows a live "right now" snapshot.
   - **All tracked** — the full curated catalog to browse.
 
 - Each satellite row is **tappable to expand a detail panel** with a curated
@@ -49,13 +45,15 @@ small** and focused on satellites.
 
 <div align="center">
 
-_Insert mobile-first screenshots or recordings here. Recommended capture tips below._
+_Animated capture of the live dashboard_
+
+<img src="assets/screenshots/demo.gif" alt="Animated demo of Sky Above Me" width="280" />
 
 <table>
   <tr>
     <td align="center" width="33%">
-      <img src="assets/screenshots/visible-tonight.png" alt="Visible now dashboard" width="280" /><br />
-      <sub><strong>Visible now</strong> — above-horizon satellites, ranked</sub>
+      <img src="assets/screenshots/visible-tonight.png" alt="Visible Tonight dashboard" width="280" /><br />
+      <sub><strong>Visible Tonight</strong> — pass prediction for the night ahead</sub>
     </td>
     <td align="center" width="33%">
       <img src="assets/screenshots/detail.png" alt="Satellite detail panel" width="280" /><br />
@@ -68,26 +66,11 @@ _Insert mobile-first screenshots or recordings here. Recommended capture tips be
   </tr>
 </table>
 
-_Optional: an animated capture of the live dashboard_
-
-<img src="assets/screenshots/demo.gif" alt="Animated demo of Sky Above Me" width="280" />
-
 </div>
 
-### Capturing assets (for you to fill in)
-
-Drop files into `assets/screenshots/`, then replace the stub paths above. Notes:
-
-- **Screenshots**: a PNG/JPG in a phone frame reads best for a mobile-first app.
-  Target ~280–320px wide in a `<table>` row for the side-by-side layout, or a
-  single centered image if you prefer.
-- **Animated demo**: a short looped `.gif` (or `.webp`/`.mp4`) of the dashboard
-  in action is best captured with a mobile viewport in devtools. Keep it small —
-  large GIFs bloat the README.
-- **Alt text** describes each image for accessibility and for anyone on a
-  connection that can't load the image.
-
 ---
+
+## Getting started
 
 ### Prerequisites
 
@@ -159,7 +142,7 @@ deno task check:celestrak
 
 Location is an **observer input, not user data**.
 
-- The user's precise latitude/longitude stays in the browser whenever possible.
+- The user's precise latitude/longitude stays in the browser.
 - SGP4 → topocentric math runs fully client-side.
 - There are **no user accounts**, no authentication, no database, no stored
   precise location, no location history, and minimal analytics.
@@ -205,7 +188,7 @@ usage policy:
 ## Orbital calculation pipeline
 
 ```text
-                                                            ┌──────────────┐
+                                                           ┌──────────────┐
 Browser location + current time                            │   Browser    │
                                             ┌──────────────│  (SGP4 math) │
                                             │              └──────────────┘
@@ -283,12 +266,6 @@ presentation concern.
 - **Separation of concerns.** Pure domain/astronomy code has no DOM or network
   dependencies and is independently testable. Components only transform state
   into UI.
-- **Honest data.** The proxy never fabricates data and always tells the user
-  when the data isn't live. Visual magnitudes are not invented.
-- **"Don't just tell the user where things are — tell them what is
-  interesting."** There is no fabricated "interestingness" score; ranking is
-  purely data-driven, and the curated detail panels carry the "why it's
-  interesting."
 
 ---
 
