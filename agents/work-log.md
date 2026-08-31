@@ -15,43 +15,73 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phases 4–8 done + Style Phase 1 foundation + **VISIBLE TONIGHT
-> feature done** + **offline dev fixture added** + **Vercel deployment config
-> added + first-deploy build failure found & fixed locally (final).** The app
-> propagates satellites (SGP4), converts to
-> azimuth/elevation/range against the observer, and now predicts the coming
-> night: **VISIBLE TONIGHT** replaces "Visible now" as the second view. It
-> computes (via pure NOAA sunrise/sunset) the sunset→next-sunrise window, then
-> multi-epoch propagation (~60s steps) to detect every above-horizon pass
-> (rise/interpolated set/culmination + peak elevation + azimuth), derives a best
-> observing window (densest span of concurrent activity) and a chronological
-> next-events list, and shows a live right-now snapshot. No fabricated
-> metrics — all numbers are computed. **Offline dev fixture added:** run
-> `deno task dev:mock` to view the app with static satellites while CelesTrak is
-> down (serves realistic-but-frozen elements over `/api/satellites`; normal
-> `dev`/prod untouched). **Deployment:** a `package.json` + committed
-> `package-lock.json` let Vercel's native npm install+build produce a `dist/`
-> verified byte-identical to `deno task build` (both hash `index-BDSTd0_7.js`);
-> the `/api` function runs on `vercel-deno@3.2.0`. **Deploy build failure — final
-> fix:** the community runtime bundles **Deno v1.44.4**, which cannot parse our
-> root `deno.json` `"nodeModulesDir": "auto"` (a Deno-2-only value). The second
-> attempt proved the `--no-config` shebang only fixed the builder's `deno run`
-> step, not its `deno info --json` trace step (which never gets `--no-config`),
-> so the config error persisted. **Real fix:** set `"nodeModulesDir": true` (a
-> boolean accepted by BOTH v1.44.4 and 2.9.5) and removed the now-unnecessary
-> `--no-config` shebang. Reproduced the exact builder steps with a fresh Deno
-> v1.44.4 against a lockfile-free clone (Vercel's state — `deno.lock` is
-> gitignored): the `deno run` compile AND both `deno info --json` traces
-> (`api/satellites.ts` + runtime wrapper) now exit 0. **Next:** commit & push
-> (re-deploy on Vercel); then return to the deeper Information-language +
-> identity styling passes (STYLE-GUIDE §38 Phases 2–3); retry the live
-> `tests/api` integration test once CelesTrak returns.
+> **Status:** Deployed to Vercel + **STYLE Phases 2 & 3 (Information language +
+> VISIBLE TONIGHT restyle) done** on branch `style/information-language`. The
+> whole dashboard now speaks the instrument language from STYLE-GUIDE.md §38:
+> header is a small uppercase nameplate (`SKY ABOVE ME` / `LOCAL OBSERVATION
+> SYSTEM`); location status is a compact `● ONLINE/ACQUIRING/READY/UNAVAILABLE`
+> strip with outlined amber instrument controls; the view switch is a flat
+> labelled instrument switch (amber underline for the active view, no bubbly
+> pill); "All tracked" rows are aligned name / live az·elev·range columns with a
+> cyan object accent; the detail panel is a ruled dt/dd readout; and the
+> already-built VISIBLE TONIGHT page is restyled to the guide's layout (amber
+> observation window bar, aligned next-events timeline, instrument pass rows).
+> No computation changed — all metrics remain data-proven. Verified: `typecheck`
+> ✓, `build` ✓ (CSS 8.43→11.51 kB), `deno task dev:mock` serves the app + fixtures.
+> **Next:** commit & push `style/information-language`; visual QA on a phone;
+> then the deferred STYLE Phase 4 (atmosphere — grid, glyphs, reticle motifs) as
+> a separate pass.
 >
-> **Today's date:** 2026-08-28
+> **Today's date:** 2026-08-31
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-31 — STYLE Phases 2 & 3: Information language + VISIBLE TONIGHT restyle
+
+**What**
+
+* `src/components/Dashboard.ts` — header becomes a technical nameplate: title
+  `SKY ABOVE ME` (uppercase, tracked) + small `LOCAL OBSERVATION SYSTEM` subtitle.
+* `src/components/SatelliteList.ts` — "All tracked" rows use aligned columns:
+  name (left) + right-aligned live `az · elev° · range` readout (cyan object
+  accent) + chevron; detail panel is a ruled dt/dd readout. VISIBLE TONIGHT text
+  refined to technical language (`RISE/PEEK/SET`, `NIGHT · …`, `Best observing
+  window · …`). Events rows use fixed time column + uppercase instrument kind.
+* `src/styles/global.css` — Phase 2/3 instrument language pulled through every
+  component: uppercase tracked section headings/technical labels; flat
+  rules/dividers instead of outlined cards (header rule, detail dashed top rule,
+  readout rule, view-switch underline); location status as a compact
+  `●`-indicator strip with outlined amber instrument controls and machined
+  entry form; view switch as a flat labelled instrument switch (amber underline
+  for active view); tonight window card restyled with amber instrument left
+  accent; outage banner is a plain ruled alert with an outlined amber retry.
+* `agents/work-log.md` — this entry + refreshed Latest summary.
+
+**Why**
+
+* STYLE-GUIDE.md §38 Phases 2 (information language) + 3 (VISIBLE TONIGHT
+  layout) after Phase 1 (foundation/tokens) landed. The annight feature
+  (computation) already existed, so the tonight restyle is now purely cosmetic.
+* Honours the data-provenance + no-fabrication rules: only metrics the app
+  computes are rendered; colour/typography/layout only, no markup of
+  un-computed values.
+
+**Verified**
+
+* `deno task typecheck` ✓; `deno task build` ✓ (CSS 8.43→11.51 kB, JS 47.82 kB);
+  `deno task test` 74 pass / 1 fail (only the pre-existing live CelesTrak outage
+  test); `deno task dev:mock` serves the app + 12 fixtures, proxy + page 200.
+
+**Next**
+
+* Commit & push `style/information-language`, then visual QA on a phone (touch
+  targets, contrast, tonight layout).
+* Deferred STYLE Phase 4 — atmosphere (subtle grid, glyphs, reticle motifs,
+  annotations) as a later separate pass.
+* Retry live `tests/api` once CelesTrak returns.
+
 
 ### 2026-08-28 — Final fix: root deno.json compatible with the old build-time Deno v1.44.4
 
