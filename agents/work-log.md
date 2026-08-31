@@ -15,36 +15,139 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Deployed to **Deno Deploy** (migration in from `main`) + **STYLE
-> Phases 2 & 3 (Information language + VISIBLE TONIGHT restyle) done** on this
-> branch (`style/information-language`). The whole app now ships as a single
-> **dynamic** Deno Deploy app served by a new root `main.ts` entrypoint
-> (`Deno.serve`): `/api/satellites` delegates to the existing proxy, and every
-> other path serves the Vite `dist/` build with an SPA fallback to `index.html`.
-> The Vercel-era scaffolding (`vercel.json`, `package.json`, `package-lock.json`)
-> and the `nodeModulesDir: true`/`--no-config` compat hacks are gone — root
-> `deno.json` is back to `nodeModulesDir: "auto"` with a `deploy` block. And the
-> dashboard speaks the instrument language from STYLE-GUIDE.md §38: header is a
-> small uppercase nameplate (`SKY ABOVE ME` / `LOCAL OBSERVATION SYSTEM`);
-> location status is a compact `● ONLINE/ACQUIRING/READY/UNAVAILABLE` strip with
-> outlined amber instrument controls; the view switch is a flat labelled
-> instrument switch (amber underline for the active view, no bubbly pill); "All
-> tracked" rows are aligned name / live az·elev·range columns with a cyan object
-> accent; the detail panel is a ruled dt/dd readout; and the already-built
-> VISIBLE TONIGHT page is restyled to the guide's layout (amber observation
-> window bar, aligned next-events timeline, instrument pass rows). No computation
-> changed — all metrics remain data-proven. Verified: `typecheck` ✓, `build` ✓,
-> tests **74 pass / 1 fail** (only the live CelesTrak outage test), and `main.ts`
-> serves the SPA + `/api/satellites` + Permissions-Policy correctly.
-> **Next:** visual QA on a phone (touch targets, contrast, tonight layout); then
-> the deferred STYLE Phase 4 (atmosphere — grid, glyphs, reticle motifs) as a
-> separate pass; retry the live `tests/api` once CelesTrak returns.
+> **Status:** Deno Deploy (in from `main`) + STYLE Phases 2, 3 **and 4
+> (Atmosphere) done** on branch `style/atmosphere` (based on current `main`,
+> which already carries migration + Phases 2–3). The app deploys as a single
+> **dynamic** Deno Deploy app from root `main.ts` (`Deno.serve`: `/api/satellites`
+> proxy + serves Vite `dist/` with SPA fallback; `deno.json` has
+> `nodeModulesDir: "auto"` + a `deploy` block; no Vercel/npm leftover).
+>
+> **This branch adds Phase 4 — Atmosphere (STYLE-GUIDE §22 / §38 Phase 4), the
+> "last layer", discovered not noticed, no fake data:**
+> - The header nameplate (title + subtitle) plus a live system clock annotation
+>   (`✶ SYS <UTC> · <LOCAL>` — real device time, §22 "small system timestamps")
+>   are now **centred as one block**, and the location-status strip is centred
+>   too (per user: "centre the whole header, not just the title").
+> - Star field + grain now live on the **`html`/`body` background as *scrolling*
+>   layers** (they move with content) so there is never a colour seam between the
+>   app and the reveal beyond it when scrolling. `html` shares the sky colour to
+>   keep overscroll/underscroll uniform. The `position: fixed` **vignette was
+>   dropped** — it darkened the viewport edges and read as a colour mismatch on
+>   the phone (user: "no colour change between the app and the top/bottom
+>   background when scrolling past the app" — main behaves that way; now it does
+>   too).
+> - The star tile (a 460px SVG `body` background) is **richer**: ~70 stars of
+>   varying size/opacity (was 10 uniform dots) plus a few faint **objects** — a
+>   thin orbital arc, a tiny sparkle, and a soft cyan planet dot (§22 "stars or
+>   points", "orbital arcs", "occasional symbols"). Grain is a 180px SVG
+>   feTurbulence tile on top. Subdued, no straight lines, no fabricated data.
+> - `.dashboard__header::before` — a faint minimal reticle (one ring, two
+>   hairlines, centre dot) behind the nameplate (§38 Phase 4.3).
+> - Astronomical glyph `✶` on the clock (typographic symbol, not emoji, §20).
+> - The only animated layer (the slow reticle rotation) is gated behind
+>   `prefers-reduced-motion: no-preference` and disabled under reduced motion.
+>   Stars/grain are static and scroll with content (astronomically honest,
+>   seamless). Everything is decorative and removable — the page works
+>   identically without the texture (§22).
+> 
+> No computation changed — all metrics stay data-proven (AGENTS §13).
+> Verified: `typecheck` ✓, `build` ✓ (CSS 19.82 kB / gzip 4.00 kB, JS 48.27 kB),
+> tests **74 pass / 1 fail** (only the live CelesTrak outage test), rendered DOM
+> shows the centered header + live clock + outage state correctly.
+> 
+> **Next:** visual QA on a phone (star density, object subtlety, scroll
+> seamlessness); then fast-forward `style/atmosphere` into `main`; retry live
+> `tests/api` once CelesTrak returns.
 >
 > **Today's date:** 2026-08-31
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-31 — STYLE Phase 4: Atmosphere (star field, grain, reticle, glyph, clock) + centred header
+
+**What**
+
+* `src/components/Dashboard.ts` — added a live system clock annotation to the
+  header (`✶ SYS <UTC> · <LOCAL> LOCAL`, real device time, updates every second
+  via a `setInterval` that is cleared/recreated on each render; `✶` is a
+  typographic glyph, not an emoji, per §20). `formatClock` helper.
+* `src/styles/tokens.css` — only `--color-reticle` remains (used by the header
+  reticle). The star-field and grain colours/opacities are baked into their SVG
+  data-URIs (so they moved out of tokens.css when the layers moved onto the body
+  background; the earlier `--color-star*`, `--grain-opacity` tokens were dropped).
+* `src/styles/global.css` —
+  * Header is now a centred block (`margin: 0 auto`, `align-items: center`,
+    `text-align: center`): title + subtitle + clock. The `.location-status`
+    strip is centred too (`flex-wrap: wrap; justify-content: center`) and its
+    content blocks no longer stretch (`flex: 0 1 auto`), so the entire header
+    including the status strip reads as one centred instrument cluster (user
+    requested the whole header be centred).
+  * Star field + grain moved onto the **`html`/`body` background as scrolling
+    layers** (they now move with content; `html` gets the sky colour so
+    overscroll/underscroll stay uniform). The `position: fixed` vignette was
+    dropped — it darkened the viewport edges and read as a colour mismatch while
+    scrolling on the phone. The star tile is a 460px SVG `body` background with
+    ~70 stars of varying size/opacity + a faint orbital arc, tiny sparkle, and
+    soft cyan planet dot (§22). Grain is a 180px SVG `feTurbulence` tile on top
+    (§22 "subtle grain").
+  * `.dashboard__header::before` — a faint minimal reticle behind the nameplate:
+    one concentric ring, two crossed hairlines, a centre dot (§38 Phase 4.3
+    orbital-ish motif). `position: absolute`, `pointer-events: none`.
+  * Keyframe `reticle-rotate` (300s) — the only animating layer, very slow
+    drift; gated behind `prefers-reduced-motion: no-preference` and fully
+    disabled under `prefers-reduced-motion: reduce`. The star field is static.
+  * `body::before` / `body::after` — the star tile and grain are **fixed
+    (non-scrolling)** backdrop layers at `z-index: 0`, under `#app`
+    (`position: relative; z-index: 1`), `pointer-events: none`. They stay put
+    while content scrolls (deliberate: the sky shouldn't move with the page).
+
+**Why**
+
+* STYLE-GUIDE §38 Phase 4 (Atmosphere) was the last deferred style phase. §22
+  and §34 direct: restraint, "discovered rather than noticed", "simpler +
+  stranger" over "louder + more decorative", and the page must still work if all
+  atmosphere is removed. So every layer is decorative (star field/grain/reticle)
+  or *real data we already have* (the device clock) — nothing fabricated, per
+  the data-provenance rule (AGENTS §13).
+* The first attempt used a **regular line grid**, but on QA the user flagged that
+  the grid's lines clashed with the 1px separators/rules used throughout the UI.
+  Switched to **sparse star points** (chosen from §22 "small stars or points"):
+  more authentically "night sky", zero straight lines (no conflict with rules),
+  and still texture.
+* On phone QA the user asked for **more + varying-size stars and a couple of
+  subtle objects** (orbital arc, sparkle, planet). Iterating on that: the richer
+  star tile now has ~70 varying-size stars plus a single faint cyan planet dot;
+  the **orbital arc was removed** on QA (it read as a stray curved line in the
+  tile) and the sparkle dropped too.
+* The user also flagged that scrolling "past" the app showed a **darker colour
+  change** — confirmed **phone-specific** (web is unaffected). This was the
+  `position: fixed` edge vignette, but the user preferred the **fixed (not
+  scrolling)** sky and only wanted the seam gone. The actual phone cause is
+  overscroll revealing a canvas region with a differing background. Real fix:
+  set `html` (the browser canvas) to the same sky colour so overscroll/
+  underscore reveal matches and never flash a darker default band — and restore
+  the fixed, non-scrolling star+grain backdrop layers (they don't move with
+  content).
+* Avoided per-row astronomical glyphs that would imply an object classification
+  we don't compute (honesty rule). Only the true clock annotation carries a glyph.
+
+**Verified**
+
+* `deno task typecheck` ✓; `deno task build` ✓ (CSS 20.36 kB / gzip 3.88 kB, JS
+  48.27 kB); `deno task test` 74 pass / 1 fail (only the pre-existing live
+  CelesTrak outage test).
+* Rendered DOM via headless Chromium at `deno task serve`: `.dashboard__header`
+  present, clock renders `✶ SYS 03:24:56 UTC · 13:24:56 LOCAL`, outage state
+  shows (CelesTrak still down). Centred-block CSS applied.
+
+**Next**
+
+* Commit & push `style/atmosphere`; visual QA on a phone (centred header spacing,
+  reticle legibility, star/grain strength vs contrast); then fast-forward into
+  `main` so the Deno Deploy prod picks it up.
+* Retry live `tests/api` once CelesTrak returns.
 
 ### 2026-08-31 — STYLE Phases 2 & 3: Information language + VISIBLE TONIGHT restyle
 
