@@ -258,7 +258,7 @@ function renderWindowBar(
   const night = document.createElement("p");
   night.className = "tonight__window-night";
   night.textContent =
-    `Night: ${formatTime(window.startUtc)} – ${formatTime(window.endUtc)}`;
+    `NIGHT · ${formatTime(window.startUtc)} – ${formatTime(window.endUtc)}`;
 
   box.append(night);
 
@@ -266,7 +266,7 @@ function renderWindowBar(
     const bestLine = document.createElement("p");
     bestLine.className = "tonight__window-best";
     bestLine.textContent =
-      `Best observing window: ${formatTime(best.startUtc)} – ${formatTime(best.endUtc)} ` +
+      `Best observing window · ${formatTime(best.startUtc)} – ${formatTime(best.endUtc)} ` +
       `(up to ${best.peakSatellites} satellites at once)`;
     box.append(bestLine);
   }
@@ -373,26 +373,25 @@ function renderSatellitePassRow(
   button.addEventListener("click", () =>
     onSelect(selected ? null : satellite.noradId));
 
-  const name = document.createElement("span");
-  name.className = "satellite-list__name";
-  name.textContent = satellite.label;
-
   const subtitle = document.createElement("span");
   subtitle.className = "satellite-list__sub";
   subtitle.textContent =
-    `${formatTime(pass.riseUtc)} rise · peak ${formatElevation(pass.maxElevationDeg)} at ` +
-    `${formatTime(pass.culminationUtc)} · ${formatTime(pass.setUtc)} set`;
+    `RISE ${formatTime(pass.riseUtc)} · PEAK ${formatElevation(pass.maxElevationDeg)} at ` +
+    `${formatTime(pass.culminationUtc)} · SET ${formatTime(pass.setUtc)}`;
 
   const chevron = document.createElement("span");
   chevron.className = "satellite-list__chevron";
   chevron.setAttribute("aria-hidden", "true");
   chevron.textContent = selected ? "▾" : "▸";
 
-  const textWrap = document.createElement("span");
-  textWrap.className = "satellite-list__text";
-  textWrap.append(name, subtitle);
+  const nameCol = document.createElement("span");
+  nameCol.className = "satellite-list__name-col";
+  const nameCell = document.createElement("span");
+  nameCell.className = "satellite-list__name";
+  nameCell.textContent = satellite.label;
+  nameCol.append(nameCell, subtitle);
 
-  button.append(textWrap, chevron);
+  button.append(nameCol, chevron);
   li.append(button);
 
   if (selected) {
@@ -425,30 +424,34 @@ function renderRow(
   button.addEventListener("click", () =>
     onSelect(selected ? null : satellite.noradId));
 
-  const name = document.createElement("span");
-  name.className = "satellite-list__name";
-  name.textContent = satellite.label;
-
   const position = visibilityById.get(satellite.noradId);
-  const subtitle = document.createElement("span");
-  subtitle.className = "satellite-list__sub";
-  if (position) {
-    subtitle.textContent =
-      `${formatAzimuth(position.azimuthDeg)} · ${formatElevation(position.elevationDeg)} · ` +
-      `${position.rangeKm.toFixed(0)} km`;
-  }
+
+  const nameCol = document.createElement("span");
+  nameCol.className = "satellite-list__name-col";
+  const nameCell = document.createElement("span");
+  nameCell.className = "satellite-list__name";
+  nameCell.textContent = satellite.label;
+  nameCol.append(nameCell);
 
   const chevron = document.createElement("span");
   chevron.className = "satellite-list__chevron";
   chevron.setAttribute("aria-hidden", "true");
   chevron.textContent = selected ? "▾" : "▸";
 
-  const textWrap = document.createElement("span");
-  textWrap.className = "satellite-list__text";
-  textWrap.append(name);
-  if (position) textWrap.append(subtitle);
+  if (position) {
+    const valCol = document.createElement("span");
+    valCol.className = "satellite-list__val-col";
+    const live = document.createElement("span");
+    live.className = "satellite-list__live";
+    live.textContent =
+      `${formatAzimuth(position.azimuthDeg)} · ${Math.round(position.elevationDeg)}° · ` +
+      `${position.rangeKm.toFixed(0)} km`;
+    valCol.append(live);
+    button.append(nameCol, valCol, chevron);
+  } else {
+    button.append(nameCol, chevron);
+  }
 
-  button.append(textWrap, chevron);
   li.append(button);
 
   if (selected) {

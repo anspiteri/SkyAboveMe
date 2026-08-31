@@ -63,7 +63,7 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
 
   const subtitle = document.createElement("p");
   subtitle.className = "dashboard__subtitle";
-  subtitle.textContent = "What's above you right now?";
+  subtitle.textContent = "Local observation system";
 
   header.append(title, subtitle);
 
