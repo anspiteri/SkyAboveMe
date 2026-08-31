@@ -5,7 +5,7 @@
 <h1 align="center">Sky Above Me</h1>
 
 <p align="center">
-  <strong>Which satellites are worth watching tonight?</strong>
+  <strong>What's happening above me in space tonight?</strong>
 </p>
 
 Sky Above Me is a small, mobile-first web application developed with OpenCode.
