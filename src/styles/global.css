@@ -27,6 +27,10 @@ body {
   max-width: var(--content-width);
   margin: 0 auto;
   padding: var(--space-5) var(--page-pad);
+  /* Keep the header below the iPhone status-bar / notch region: with
+     `viewport-fit=cover` the layout fills the whole screen, so without this the
+     header sat under iOS's translucent status-bar scrim and looked darkened. */
+  padding-top: max(var(--space-5), env(safe-area-inset-top));
   padding-bottom: max(var(--space-7), env(safe-area-inset-bottom));
 }
 
