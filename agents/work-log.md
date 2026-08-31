@@ -15,55 +15,179 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Deno Deploy (in from `main`) + STYLE Phases 2, 3 **and 4
-> (Atmosphere) done** on branch `style/atmosphere` (based on current `main`,
-> which already carries migration + Phases 2–3). The app deploys as a single
+> **Status:** CelesTrak resilience work **merged into `main`** (squash commits
+> `5b9c155` caching + `f925684` hardening). The app deploys as a single
 > **dynamic** Deno Deploy app from root `main.ts` (`Deno.serve`: `/api/satellites`
-> proxy + serves Vite `dist/` with SPA fallback; `deno.json` has
-> `nodeModulesDir: "auto"` + a `deploy` block; no Vercel/npm leftover).
+> proxy + serves Vite `dist/` with SPA fallback).
 >
-> **This branch adds Phase 4 — Atmosphere (STYLE-GUIDE §22 / §38 Phase 4), the
-> "last layer", discovered not noticed, no fake data:**
-> - The header nameplate (title + subtitle) plus a live system clock annotation
->   (`✶ SYS <UTC> · <LOCAL>` — real device time, §22 "small system timestamps")
->   are now **centred as one block**, and the location-status strip is centred
->   too (per user: "centre the whole header, not just the title").
-> - Star field + grain now live on the **`html`/`body` background as *scrolling*
->   layers** (they move with content) so there is never a colour seam between the
->   app and the reveal beyond it when scrolling. `html` shares the sky colour to
->   keep overscroll/underscroll uniform. The `position: fixed` **vignette was
->   dropped** — it darkened the viewport edges and read as a colour mismatch on
->   the phone (user: "no colour change between the app and the top/bottom
->   background when scrolling past the app" — main behaves that way; now it does
->   too).
-> - The star tile (a 460px SVG `body` background) is **richer**: ~70 stars of
->   varying size/opacity (was 10 uniform dots) plus a few faint **objects** — a
->   thin orbital arc, a tiny sparkle, and a soft cyan planet dot (§22 "stars or
->   points", "orbital arcs", "occasional symbols"). Grain is a 180px SVG
->   feTurbulence tile on top. Subdued, no straight lines, no fabricated data.
-> - `.dashboard__header::before` — a faint minimal reticle (one ring, two
->   hairlines, centre dot) behind the nameplate (§38 Phase 4.3).
-> - Astronomical glyph `✶` on the clock (typographic symbol, not emoji, §20).
-> - The only animated layer (the slow reticle rotation) is gated behind
->   `prefers-reduced-motion: no-preference` and disabled under reduced motion.
->   Stars/grain are static and scroll with content (astronomically honest,
->   seamless). Everything is decorative and removable — the page works
->   identically without the texture (§22).
-> 
-> No computation changed — all metrics stay data-proven (AGENTS §13).
-> Verified: `typecheck` ✓, `build` ✓ (CSS 19.82 kB / gzip 4.00 kB, JS 48.27 kB),
-> tests **74 pass / 1 fail** (only the live CelesTrak outage test), rendered DOM
-> shows the centered header + live clock + outage state correctly.
-> 
-> **Next:** visual QA on a phone (star density, object subtlety, scroll
-> seamlessness); then fast-forward `style/atmosphere` into `main`; retry live
-> `tests/api` once CelesTrak returns.
+> **The `/api/satellites` proxy is now hardened against CelesTrak throttle/firewall
+> and ALWAYS serves data** (live → fresh cache → stale cache → bundled snapshot):
+> - **Caching (PR #1, `5b9c155`):** 6h upstream TTL in Deno KV (`api/cache.ts`,
+>   in-memory fallback for tests), coalescing of concurrent misses, concurrency 2,
+>   250ms pacing, lazy shared cache handle. Fixed the root cause of the outage:
+>   the proxy used to fire 16 per-request `gp.php?CATNR=` calls from Deno Deploy's
+>   shared egress IPs and got throttled.
+> - **Hardening (`f925684`):** retry policy now matches CelesTrak's usage policy —
+>   stop on ANY non-HTTP-200 (no 429 retry, no 5xx retry; repeating 403/404 is
+>   what lands an IP in the firewall). Durable **circuit breaker** (KV-backed)
+>   opens for **2h** after 2 consecutive failed refresh batches and stops touching
+>   upstream entirely, so a deploy landed mid-throttle never pings CelesTrak.
+>   **Bundled frozen snapshot** `src/data/satellite-snapshot.ts` served as a
+>   flagged last-resort fallback (dev fixtures now reuse it — one source of truth).
+>
+> **Users are always told when data isn't live:** the proxy sets
+> `X-Satellite-Data-Source` (`celestrak|cache|fallback`) and
+> `X-Satellite-Data-Stale` headers; the client shows a **prominent banner for
+> placeholder/fallback data** ("not real live data") and a **slim notice for
+> stale cache** (positions may be out of date). Fresh/live data shows nothing.
+>
+> **Diagnostics added:** `GET /api/_celestrak-check` (single probe from the
+> deployed egress IP, verdict REACHABLE/THROTTLED/BLOCKED) and local
+> `deno task check:celestrak` (`scripts/check-celestrak.ts`, shared classify via
+> `src/services/celestrak-probe.ts`). As of today the local IP reads THROTTLED
+> (hangs, not the permanent-ban 403) after days of dev/live-test hammering — the
+> throttle auto-clears in ~2h.
+>
+> Verified: `typecheck` ✓, `build` ✓, **83 tests pass / 0 fail**, lint clean on
+> all app/proxy source (only pre-existing `require-await` stubs in
+> `tests/services/satellite-data_test.ts`).
+>
+> **Next:** push `main` to Deploy; once CelesTrak un-throttles, re-run the live
+> suite `deno task test:live`; refresh the snapshot epoch before each release.
+> iOS status-bar overlay work remains parked in `agents/v2.md`.
 >
 > **Today's date:** 2026-08-31
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-31 — Harden the CelesTrak proxy: always-serve fallback, circuit breaker, policy-correct retries, user provenance notices
+
+**What**
+
+* `api/satellites.ts` —
+  * **Retry policy now matches CelesTrak's usage policy verbatim:** stop on ANY
+    non-HTTP-200 response. Removed the previous retry-on-429 with backoff
+    (429 isn't exempt: repeated 403/404 is exactly what sends an IP to the
+    firewall; 50x means "stop immediately"). One non-200 → return null, count a
+    breaker failure. No retries, no backoff.
+  * **Durable circuit breaker** (stored in the shared KV/memory cache under
+    `celestrak-breaker`): after 2 consecutive failed refresh batches the breaker
+    opens for **2h** (`COOLDOWN_MS`, aligned to CelesTrak's stated
+    `~2h` throttle-clearing window). While open, `fetchCuratedSatellites`
+    short-circuits before any upstream work and serves cache-or-snapshot, so a
+    deploy landing mid-throttle never pings CelesTrak.
+  * **Always-serve ladder:** fresh cache → live CelesTrak → stale cache → bundled
+    snapshot. `fetchCuratedSatellites` now returns `{ satellites, source, stale }`
+    (`source: "celestrak"|"cache"|"fallback"`).
+  * Response sets `X-Satellite-Data-Source` (+ `X-Satellite-Data-Stale: true`
+    when the served data is older than the 6h freshness window).
+  * **`GET /api/_celestrak-check`** diagnostic — `celestrakDiagnostic()` probes
+    CelesTrak once from the Deploy egress IP (10s timeout) and returns
+    status/latency/body-snippet + a `verdict` (see `celestrak-probe.ts`).
+* `src/data/satellite-snapshot.ts` (new) — the bundled frozen `Satellite[]` set
+  (`FALLBACK_SATELLITES`) built from `CURATED_CATALOG` + plausible static
+  orbital elements at `SNAPSHOT_EPOCH`. Clearly documented as historical
+  placeholder, never live; flagged to clients as `fallback`.
+* `scripts/dev-fixtures.ts` — now re-exports `FALLBACK_SATELLITES` as
+  `MOCK_SATELLITES` (single source of truth; dev mock == prod fallback exactly).
+* `src/services/celestrak-probe.ts` (new) — shared `probe()` + `classify()`
+  (REACHABLE / THROTTLED / BLOCKED, block detected by CelesTrak's permanent-ban
+  wording); used by both the CLI checker and the deployed diagnostic.
+* `scripts/check-celestrak.ts` (new) + `deno.json` `check:celestrak` task — local
+  CLI poker (3 probes, 8s timeout) with a plain-language summary bucket.
+* `main.ts` — route `GET /api/_celestrak-check` → `celestrakDiagnostic()`.
+* Client provenance:
+  * `src/services/satellite-data.ts` — reads `X-Satellite-Data-Source` and
+    `X-Satellite-Data-Stale`; ok-result is now
+    `{ ok, satellites, source, stale }`.
+  * `src/app/state.ts` — `loaded` carries `source` + `stale`.
+  * `src/app/app.ts` — stores them (replaced the old console-only log).
+  * `src/components/SatelliteList.ts` — `renderProvenanceNotice(source, stale)`:
+    **prominent banner** for `fallback` ("…a saved placeholder — not real live
+    data…") and a **slim one-line notice** for `stale` cache ("positions may be
+    out of date"); nothing for fresh/live. The existing `empty` state is kept
+    (belt-and-suspenders; effectively unreachable now that fallback always
+    returns a full set).
+* Tests: `tests/api/celestrak-cache_test.ts` updated to the new result shape +
+  new cases (fallback on empty-cache failure, breaker open after 2 failures and
+  zero upstream contact while open, no retry on 5xx, no retry on 429);
+  `tests/services/satellite-data_test.ts` asserts `source`/`stale` defaults and
+  the fallback/stale headers.
+
+**Why**
+
+* CelesTrak had been throttling day-long across every IP we develop from, after
+  the previous live-test bursts. The user asked the proxy to ALWAYS serve
+  something with an explicit flag, and asked me to actually read CelesTrak's
+  usage policy (celestrak.org/usage-policy.php) — which changed the earlier
+  "retry on 429" assumption: M2M software must stop on ANY non-200.
+* The always-serve ladder + breaker guarantee we can never be the actor that
+  compounds errors toward the 50-errors/2h firewall trip, and that a deploy
+  during a throttle starts with the breaker open (no pings).
+* Provenance must be user-visible, not just a server log, so the sky is never
+  silently presented as live when it's placeholder or stale (AGENTS §13/§17).
+
+**Verified**
+
+* `deno check src api main.ts` ✓ (0 errors); `deno task build` ✓ (JS 49.16 kB);
+  `deno task test` **83 pass / 0 fail**; lint clean on all app/proxy source
+  (only pre-existing `require-await` stubs remain in `satellite-data_test.ts`,
+  present on `main` before this work).
+* `deno task check:celestrak` from local IP: 3× timeout → THROTTLED — a
+  temporary overuse/load throttle (no HTTP error, just hangs), not a permanent
+  firewall block (no custom 403 with the permanent-ban wording).
+* Merged: branch `feat/celestrak-hardening` (commit `52994f9`) squash-merged into
+  `main` as commit `f925684`; branch deleted.
+
+**Next**
+
+* Push `main` (`f925684`) to Deploy.
+* Once CelesTrak un-throttles (~2h), run `deno task test:live` and the deployed
+  `/api/_celestrak-check` to confirm the egress IP is healthy.
+* Refresh `SNAPSHOT_EPOCH`/elements from a real fetch before each release.
+* iOS status-bar overlay work stays parked in `agents/v2.md`.
+
+### 2026-08-31 — Cache CelesTrak element fetches (fix: stop the proxy tripping per-IP throttling)
+
+**What**
+
+* `api/cache.ts` (new) — Deno KV-backed cache with an in-memory fallback
+  (`createMemoryCache()`, injected clock → deterministic tests). `deno.unstable`
+  added to the `deno.json` lib for the KV APIs.
+* `api/satellites.ts` — 6h upstream TTL (`UPSTREAM_TTL_MS`), coalescing of
+  concurrent misses onto one batch, concurrency 2, 250ms pacing, jittered
+  backoff+retry on 429 (later replaced — see hardening entry), stale-while-error,
+  lazy shared cache handle (`getSharedCache`) so requests reuse one KV connection.
+* `deno.json` — `test:live` task; live suite excluded from the default test glob.
+* `tests/api/satellites_test.ts` → `tests/api/satellites.live.ts` (renamed so the
+  default `deno task test` doesn't hit the network).
+* `tests/api/celestrak-cache_test.ts` (new) — 6 unit tests (fresh hit, cold miss,
+  429 retry, coalescing, stale-while-error, fail→null).
+* `src/app/app.ts` — outage messaging updated to reflect a busy/rate-limited
+  CelesTrak.
+
+**Why**
+
+* Root cause of the recurring "CelesTrak outage": the proxy issued **16
+  individual `gp.php?CATNR=` requests per page load** from Deno Deploy's shared
+  anycast egress IPs, and CelesTrak throttles IPs after bursts (here presenting
+  as hangs and HTTP 503). Orbital elements change far slower than people load
+  the page, so caching the set server-side is the correct fix.
+* Shared Deploy egress IP means any other Deploy project's CelesTrak usage can
+  also knock us out — caching + low request rates make us a good neighbour.
+
+**Verified**
+
+* `deno task test` 74 pass / 1 fail — the single failure is the pre-existing live
+  CelesTrak integration test (CelesTrak still down/throttled).
+* Merged on `feat/celestrak-cache` and squash-merged into `main` as `5b9c155`
+  (PR #1); branch deleted remotely.
+
+**Next**
+
+* See the hardening entry above (this was a precursor to it).
 
 ### 2026-08-31 — STYLE Phase 4: Atmosphere (star field, grain, reticle, glyph, clock) + centred header
 
