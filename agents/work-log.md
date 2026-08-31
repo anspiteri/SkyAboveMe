@@ -15,43 +15,92 @@ next steps so the next agent can pick up without re-reading the whole repo.
 
 ## Latest
 
-> **Status:** Phases 4–8 done + Style Phase 1 foundation + **VISIBLE TONIGHT
-> feature done** + **offline dev fixture added** + **Vercel deployment config
-> added + first-deploy build failure found & fixed locally (final).** The app
-> propagates satellites (SGP4), converts to
-> azimuth/elevation/range against the observer, and now predicts the coming
-> night: **VISIBLE TONIGHT** replaces "Visible now" as the second view. It
-> computes (via pure NOAA sunrise/sunset) the sunset→next-sunrise window, then
-> multi-epoch propagation (~60s steps) to detect every above-horizon pass
-> (rise/interpolated set/culmination + peak elevation + azimuth), derives a best
-> observing window (densest span of concurrent activity) and a chronological
-> next-events list, and shows a live right-now snapshot. No fabricated
-> metrics — all numbers are computed. **Offline dev fixture added:** run
-> `deno task dev:mock` to view the app with static satellites while CelesTrak is
-> down (serves realistic-but-frozen elements over `/api/satellites`; normal
-> `dev`/prod untouched). **Deployment:** a `package.json` + committed
-> `package-lock.json` let Vercel's native npm install+build produce a `dist/`
-> verified byte-identical to `deno task build` (both hash `index-BDSTd0_7.js`);
-> the `/api` function runs on `vercel-deno@3.2.0`. **Deploy build failure — final
-> fix:** the community runtime bundles **Deno v1.44.4**, which cannot parse our
-> root `deno.json` `"nodeModulesDir": "auto"` (a Deno-2-only value). The second
-> attempt proved the `--no-config` shebang only fixed the builder's `deno run`
-> step, not its `deno info --json` trace step (which never gets `--no-config`),
-> so the config error persisted. **Real fix:** set `"nodeModulesDir": true` (a
-> boolean accepted by BOTH v1.44.4 and 2.9.5) and removed the now-unnecessary
-> `--no-config` shebang. Reproduced the exact builder steps with a fresh Deno
-> v1.44.4 against a lockfile-free clone (Vercel's state — `deno.lock` is
-> gitignored): the `deno run` compile AND both `deno info --json` traces
-> (`api/satellites.ts` + runtime wrapper) now exit 0. **Next:** commit & push
-> (re-deploy on Vercel); then return to the deeper Information-language +
-> identity styling passes (STYLE-GUIDE §38 Phases 2–3); retry the live
-> `tests/api` integration test once CelesTrak returns.
+> **Status:** Migrated from Vercel to **Deno Deploy** (branch `deploy/deno`,
+> fresh from `main`). The whole app now ships as a single **dynamic** Deno Deploy
+> app served by a new root `main.ts` entrypoint (`Deno.serve`): `/api/satellites`
+> delegates to the existing proxy, and every other path serves the Vite `dist/`
+> build with an SPA fallback to `index.html`. All the Vercel-era scaffolding has
+> been deleted: `vercel.json`, `package.json`, and `package-lock.json` are gone;
+> root `deno.json` is back to `nodeModulesDir: "auto"` with only the genuinely
+> used imports (`@std/assert`, `@std/http/file-server`, `satellite.js`, `vite` —
+> the unused `typescript` import was dropped) plus a `deploy` block
+> (`build: "deno task build"`, `runtime: { type: "dynamic", entrypoint:
+> "./main.ts" }`). No more npm/`package-lock`/function-size hacks — Deno Deploy
+> runs Deno natively, so the 709 MB `node_modules/.deno` bundling problem
+> disappears entirely. `vite.config.ts` keeps its satellite.js WASM-avoidance
+> shim (a genuine Vite detail, working identically via Deno's managed
+> node_modules) with the comment updated; a dev `serve` task runs `main.ts`
+> locally. Verified: `typecheck` ✓, `build` ✓ (identical hashes to main), tests
+> **74 pass / 1 fail** (only the pre-existing live CelesTrak outage test), and
+> `main.ts` serves the SPA + `/api/satellites` + Permissions-Policy correctly.
+> **Next:** user sets up the Deno Deploy project in the dashboard linked to this
+> repo (app config is auto-sourced from the `deno.json` `deploy` block), deploy
+> on push to `main`, then resume the STYLE branch work.
 >
-> **Today's date:** 2026-08-28
+> **Today's date:** 2026-08-31
 
 ---
 
 ## Entries (newest first)
+
+### 2026-08-31 — Migrate deployment from Vercel to Deno Deploy
+
+**What**
+
+* `main.ts` (new) — Deno Deploy entrypoint ("dynamic" runtime): a single
+  `Deno.serve` process that serves `/api/satellites` from the existing
+  `api/satellites.ts` proxy and serves the built `dist/` for every other path,
+  with an SPA fallback to `dist/index.html`. Adds the Strict `Permissions-Policy`
+  header on all responses (was in `vercel.json`).
+* `deno.json` — `nodeModulesDir: "auto"` (was the Vercel-only `true`); removed
+  the unused `typescript` import; added `@std/http/file-server` and a `deploy`
+  block (`build: "deno task build"`, `runtime: { type: "dynamic", entrypoint:
+  "./main.ts" }`); added a `serve` task (`deno run --allow-net --allow-read
+  main.ts`) and stopped listing `preview` (replaced by `serve`).
+* Deleted `vercel.json`, `package.json`, `package-lock.json` — all existed only
+  to make Vercel's `npm ci` + Deno function build work.
+* `vite.config.ts` — comment updated (prod paths now served by Deno Deploy /
+  `main.ts`). The satellite.js WASM-avoidance alias is kept as-is: it is a
+  genuine Vite bundling detail, not a Vercel hack, and works identically under
+  Deno's managed node_modules on both local and Deno Deploy.
+* `agents/AGENTS.md` (untracked) — §4 diagram + §8 structure + §12 prod header +
+  §20 backend policy updated from Vercel to Deno Deploy / `main.ts`.
+* `agents/v2.md` (untracked) — deployment bullet updated.
+
+**Why**
+
+* Vercel was not working for this project: the community `vercel-deno@3.2.0`
+  runtime bundles Deno v1.44.4 (needs boolean `nodeModulesDir`, hence the
+  `true`-compat workaround) and hard-globs `node_modules/.deno/**` into the
+  function output, which grew past Vercel's 250 MB uncompressed limit (709 MB).
+  Deno Deploy runs the modern Deno runtime natively and serves both the API and
+  the static frontend from one edge process, so the entire npm/`package-lock`/
+  function-size compromise layer is redundant and was removed.
+* The migration also restores the clean Deno-native scaffolding that predated
+  Vercel (per the 2026-08-28 entries): no `package.json`, `nodeModulesDir:
+  "auto"`, no shebang/config shims.
+
+**Verified**
+
+* `deno task typecheck` ✓ (now also covers `main.ts`).
+* `deno task build` ✓ — `dist/` identical to main (`index-BDSTd0_7.js`,
+  `index-B8HEkHDy.css`) — no frontend regression.
+* `deno task test` → **74 passed / 1 failed** (only the pre-existing live
+  CelesTrak outage test in `tests/api/satellites_test.ts`; CelesTrak still down).
+* `deno run --allow-net --allow-read main.ts` smoke test: `/` → index.html 200,
+  `/favicon.svg` → 200, `/assets/*.js` → 200, `/api/satellites` → 200
+  application/json, `Permissions-Policy` header present, SPA fallback path →
+  200 index.html.
+
+**Next**
+
+* User creates a Deno Deploy project in the dashboard linked to `anspiteri/
+  SkyAboveMe`; because app config lives in `deno.json`'s `deploy` block, the
+  dashboard sources it from source (build `deno task build`, entrypoint
+  `main.ts`, dynamic runtime). Deploys automatically on push to `main`.
+* Retry the live `tests/api` once CelesTrak returns.
+* Resume the deferred STYLE work on `style/information-language` (Phases 2–3 are
+  already committed there; loop back after deployment is stable).
 
 ### 2026-08-28 — Final fix: root deno.json compatible with the old build-time Deno v1.44.4
 
