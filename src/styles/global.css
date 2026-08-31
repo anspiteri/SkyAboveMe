@@ -2,6 +2,9 @@
 
 html {
   color-scheme: dark;
+  /* Match body so browser overscroll/underscroll reveal the same sky colour,
+     never a lighter default (STYLE Phase 4 colour-consistency fix). */
+  background: var(--color-bg);
 }
 
 body {
@@ -15,6 +18,8 @@ body {
 
 #app {
   min-height: 100dvh;
+  position: relative;
+  z-index: 1;
 }
 
 /* Dashboard shell */
@@ -26,8 +31,12 @@ body {
 }
 
 .dashboard__header {
-  margin-bottom: var(--space-5);
-  padding-bottom: var(--space-3);
+  margin: 0 auto var(--space-5);
+  padding-bottom: var(--space-4);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -46,6 +55,16 @@ body {
   text-transform: uppercase;
 }
 
+/* Header system clock — a live, real technical annotation (STYLE-GUIDE §22) */
+.dashboard__clock {
+  margin-top: var(--space-3);
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Location status banner */
 .dashboard__status {
   margin-bottom: var(--space-5);
@@ -53,10 +72,13 @@ body {
 
 .location-status {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-3);
   align-items: flex-start;
   padding: var(--space-2) 0;
   font-size: var(--text-sm);
+  text-align: left;
 }
 
 .location-status__icon {
@@ -110,7 +132,7 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
 .location-status__actions {
@@ -560,4 +582,88 @@ body {
   color: var(--color-text);
   text-align: right;
   font-weight: 500;
+}
+
+/* ============================================================
+   STYLE Phase 4 — Atmosphere (STYLE-GUIDE §22, §38 Phase 4)
+   "Last layer", discovered not noticed. Purely decorative; the page
+   works identically with any or all of these removed. No fake data.
+   ============================================================ */
+
+/* Fixed, non-interactive backdrop layers: they stay put while content
+   scrolls (user preference — the sky shouldn't move with the page). They sit at
+   z-index: 0 under #app (z-index: 1) and are purely decorative/removable. `html`
+   shares the sky colour (see top of file) so phone overscroll/underscroll never
+   flashes a darker or white default band — it reveals the same base colour.
+   Tile: varying-size stars (`--color-star` baked in) + one faint cyan planet
+   dot. No arcs/sparkles — the orbital arc read as a stray curved line (§22). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22460%22 height=%22460%22 viewBox=%220 0 460 460%22%3E%3Cg%3E%3Ccircle cx=%22352%22 cy=%2220%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.441%22/%3E%3Ccircle cx=%22259%22 cy=%22364%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.214%22/%3E%3Ccircle cx=%22390%22 cy=%228%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.322%22/%3E%3Ccircle cx=%22225%22 cy=%22251%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.186%22/%3E%3Ccircle cx=%2286%22 cy=%22188%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.41%22/%3E%3Ccircle cx=%22185%22 cy=%22455%22 r=%221.1%22 fill=%22%23d8d3c4%22 opacity=%220.7%22/%3E%3Ccircle cx=%22281%22 cy=%22362%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.175%22/%3E%3Ccircle cx=%22165%22 cy=%22249%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.234%22/%3E%3Ccircle cx=%22221%22 cy=%22108%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.412%22/%3E%3Ccircle cx=%22261%22 cy=%22454%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.28%22/%3E%3Ccircle cx=%22270%22 cy=%22115%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.207%22/%3E%3Ccircle cx=%22340%22 cy=%22222%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.341%22/%3E%3Ccircle cx=%22303%22 cy=%22133%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.23%22/%3E%3Ccircle cx=%22239%22 cy=%22398%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.181%22/%3E%3Ccircle cx=%22144%22 cy=%22305%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.329%22/%3E%3Ccircle cx=%22402%22 cy=%22350%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.226%22/%3E%3Ccircle cx=%22147%22 cy=%22434%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.244%22/%3E%3Ccircle cx=%22217%22 cy=%22122%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.562%22/%3E%3Ccircle cx=%22401%22 cy=%22332%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.158%22/%3E%3Ccircle cx=%22389%22 cy=%2251%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.364%22/%3E%3Ccircle cx=%22288%22 cy=%22259%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.217%22/%3E%3Ccircle cx=%222%22 cy=%22161%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.378%22/%3E%3Ccircle cx=%2222%22 cy=%22160%22 r=%221.1%22 fill=%22%23d8d3c4%22 opacity=%220.551%22/%3E%3Ccircle cx=%22122%22 cy=%22202%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.208%22/%3E%3Ccircle cx=%22199%22 cy=%22171%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.282%22/%3E%3Ccircle cx=%22434%22 cy=%226%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.199%22/%3E%3Ccircle cx=%22316%22 cy=%22101%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.173%22/%3E%3Ccircle cx=%22395%22 cy=%22124%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.158%22/%3E%3Ccircle cx=%22262%22 cy=%2224%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.583%22/%3E%3Ccircle cx=%22244%22 cy=%22218%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.163%22/%3E%3Ccircle cx=%2299%22 cy=%22224%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.437%22/%3E%3Ccircle cx=%229%22 cy=%2278%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.244%22/%3E%3Ccircle cx=%22238%22 cy=%2239%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.367%22/%3E%3Ccircle cx=%22362%22 cy=%22162%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.173%22/%3E%3Ccircle cx=%22136%22 cy=%22245%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.211%22/%3E%3Ccircle cx=%2271%22 cy=%22440%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.248%22/%3E%3Ccircle cx=%22387%22 cy=%22135%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.276%22/%3E%3Ccircle cx=%2233%22 cy=%22446%22 r=%221.1%22 fill=%22%23d8d3c4%22 opacity=%220.47%22/%3E%3Ccircle cx=%22394%22 cy=%22318%22 r=%221.1%22 fill=%22%23d8d3c4%22 opacity=%220.7%22/%3E%3Ccircle cx=%22276%22 cy=%2217%22 r=%221.1%22 fill=%22%23d8d3c4%22 opacity=%220.687%22/%3E%3Ccircle cx=%22359%22 cy=%22420%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.247%22/%3E%3Ccircle cx=%22284%22 cy=%2235%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.151%22/%3E%3Ccircle cx=%22145%22 cy=%22388%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.381%22/%3E%3Ccircle cx=%22105%22 cy=%2246%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.217%22/%3E%3Ccircle cx=%22256%22 cy=%22393%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.235%22/%3E%3Ccircle cx=%2266%22 cy=%22153%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.558%22/%3E%3Ccircle cx=%22127%22 cy=%22364%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.354%22/%3E%3Ccircle cx=%22129%22 cy=%22427%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.172%22/%3E%3Ccircle cx=%22174%22 cy=%22299%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.237%22/%3E%3Ccircle cx=%22313%22 cy=%22259%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.254%22/%3E%3Ccircle cx=%22382%22 cy=%22398%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.335%22/%3E%3Ccircle cx=%22296%22 cy=%22117%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.211%22/%3E%3Ccircle cx=%2286%22 cy=%22261%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.228%22/%3E%3Ccircle cx=%2283%22 cy=%22238%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.281%22/%3E%3Ccircle cx=%22127%22 cy=%22255%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.556%22/%3E%3Ccircle cx=%22163%22 cy=%22299%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.512%22/%3E%3Ccircle cx=%22385%22 cy=%22166%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.523%22/%3E%3Ccircle cx=%22272%22 cy=%22454%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.211%22/%3E%3Ccircle cx=%22171%22 cy=%22172%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.204%22/%3E%3Ccircle cx=%22252%22 cy=%2220%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.16%22/%3E%3Ccircle cx=%22214%22 cy=%22317%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.488%22/%3E%3Ccircle cx=%2285%22 cy=%22177%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.382%22/%3E%3Ccircle cx=%22425%22 cy=%22189%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.463%22/%3E%3Ccircle cx=%22422%22 cy=%22316%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.324%22/%3E%3Ccircle cx=%22198%22 cy=%22366%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.259%22/%3E%3Ccircle cx=%22156%22 cy=%2292%22 r=%220.55%22 fill=%22%23d8d3c4%22 opacity=%220.404%22/%3E%3Ccircle cx=%22120%22 cy=%22352%22 r=%220.35%22 fill=%22%23d8d3c4%22 opacity=%220.244%22/%3E%3Ccircle cx=%22254%22 cy=%22307%22 r=%221.1%22 fill=%22%23d8d3c4%22 opacity=%220.452%22/%3E%3Ccircle cx=%22358%22 cy=%22294%22 r=%221.1%22 fill=%22%23d8d3c4%22 opacity=%220.59%22/%3E%3Ccircle cx=%22349%22 cy=%22402%22 r=%220.8%22 fill=%22%23d8d3c4%22 opacity=%220.499%22/%3E%3C/g%3E%0A  %3Ccircle cx=%22395.6%22 cy=%22358.8%22 r=%224.2%22 fill=%22%2373b9c9%22 opacity=%220.09%22/%3E%0A  %3Ccircle cx=%22395.6%22 cy=%22358.8%22 r=%221.5%22 fill=%22%2373b9c9%22 opacity=%220.20%22/%3E%3C/svg%3E");
+  background-size: 460px 460px;
+  background-repeat: repeat;
+}
+
+/* Subtle film grain layered over the star field (§22 "subtle grain"). */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22180%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%222%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22180%22 height=%22180%22 filter=%22url(%23n)%22 opacity=%220.05%22/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  background-repeat: repeat;
+}
+
+/* Reticle / orbital motif behind the header nameplate (§38 Phase 4.3).
+   A minimal concentric reticle: one ring, two hairlines, a centre dot. */
+.dashboard__header {
+  position: relative;
+}
+
+.dashboard__header::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 240px;
+  height: 240px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle,
+      transparent 49.4%,
+      var(--color-reticle) 49.6% 50%,
+      transparent 50.2%),
+    linear-gradient(90deg, transparent calc(50% - 0.5px), var(--color-reticle) calc(50% - 0.4px) calc(50% + 0.4px), transparent calc(50% + 0.5px)),
+    linear-gradient(0deg, transparent calc(50% - 0.5px), var(--color-reticle) calc(50% - 0.4px) calc(50% + 0.4px), transparent calc(50% + 0.5px)),
+    radial-gradient(circle, var(--color-reticle) 0 1.5px, transparent 1.6px);
+}
+
+@keyframes reticle-rotate {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard__header::before {
+    animation: reticle-rotate 300s linear infinite;
+  }
+}
+
+/* Honour reduced motion: the only animating atmosphere layer is the reticle. */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard__header::before {
+    animation: none;
+  }
 }

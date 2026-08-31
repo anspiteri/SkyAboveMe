@@ -31,6 +31,13 @@
 
   --color-border: rgba(216, 211, 196, 0.14);
 
+  /* Atmosphere (STYLE Phase 4 — §22 / §38): decorative, last-layer, restrained.
+     The star field + grain are baked into SVG `body` background layers (see
+     global.css) so their per-dot colour/opacity lives there; only the header
+     reticle keeps a token here. No straight lines, so no conflict with the
+     UI's rules/dividers. */
+  --color-reticle: rgba(216, 211, 196, 0.06);
+
   /* Typography — monospace-first astronomical-instrument type */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;

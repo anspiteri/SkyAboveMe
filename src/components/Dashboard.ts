@@ -12,6 +12,17 @@ import type { ManualLocationInput } from "../domain/location.ts";
 import { renderLocationStatus } from "./LocationStatus.ts";
 import { renderSatelliteList } from "./SatelliteList.ts";
 
+/** Interval id backing the header's live system clock. Recreated on each render. */
+let clockTimer: number | undefined;
+
+function formatClock(date: Date): { utc: string; local: string } {
+  const hh = (n: number) => String(n).padStart(2, "0");
+  return {
+    utc: `${hh(date.getUTCHours())}:${hh(date.getUTCMinutes())}:${hh(date.getUTCSeconds())}`,
+    local: `${hh(date.getHours())}:${hh(date.getMinutes())}:${hh(date.getSeconds())}`,
+  };
+}
+
 export interface DashboardProps {
   /** The current location status (optional until the user provides one). */
   location: LocationStatusState;
@@ -49,6 +60,10 @@ export interface DashboardProps {
 
 /** The single scrollable dashboard shell. */
 export function renderDashboard(root: HTMLElement, props: DashboardProps): void {
+  if (clockTimer !== undefined) {
+    clearInterval(clockTimer);
+    clockTimer = undefined;
+  }
   root.textContent = "";
 
   const container = document.createElement("main");
@@ -66,6 +81,16 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
   subtitle.textContent = "Local observation system";
 
   header.append(title, subtitle);
+
+  const clock = document.createElement("p");
+  clock.className = "dashboard__clock";
+  const tick = (): void => {
+    const { utc, local } = formatClock(new Date());
+    clock.textContent = `✶ SYS ${utc} UTC · ${local} LOCAL`;
+  };
+  tick();
+  clockTimer = setInterval(tick, 1000);
+  header.append(clock);
 
   const status = document.createElement("div");
   status.className = "dashboard__status";
