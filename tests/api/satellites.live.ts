@@ -2,11 +2,16 @@ import { assertEquals, assert } from "@std/assert";
 import handler from "../../api/satellites.ts";
 
 /**
- * Integration test for the serverless proxy.
+ * LIVE integration test for the serverless proxy.
  *
  * This exercises the full pipeline (CelesTrak fetch -> OMM parse -> curated
- * enrichment). It depends on the live CelesTrak service, so when that is
- * unreachable the test skips rather than failing spuriously.
+ * enrichment) against the real CelesTrak service. It is intentionally NOT part
+ * of the default `deno task test` suite, because every run sends a burst of
+ * requests from this machine's IP and can itself trigger the CelesTrak
+ * per-IP throttling this proxy was built to avoid. Run it explicitly with
+ * `deno task test:live`.
+ *
+ * When CelesTrak is unreachable the test skips rather than failing spuriously.
  */
 
 const TEST_TIMEOUT_MS = 30_000;
