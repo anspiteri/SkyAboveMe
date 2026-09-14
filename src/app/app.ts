@@ -17,6 +17,14 @@ import { computeTonightSummary } from "../services/tonight.ts";
 import { resolveManualLocation, type ManualLocationInput } from "../domain/location.ts";
 
 /**
+ * How often the time-sensitive views ("right now" snapshot and tonight's
+ * passes) are recomputed while the page is open, so completed passes disappear
+ * without requiring a manual reload. 60s matches the pass-sampling step in
+ * tonight.ts, so the visible set can never lag real time by more than a minute.
+ */
+const TONIGHT_REFRESH_MS = 60_000;
+
+/**
  * Boot the application into the given mount element.
  *
  * Location is OPTIONAL and is never requested at boot: the app is fully usable in
@@ -183,9 +191,9 @@ export function bootApp(app: HTMLElement): void {
 
   /**
    * Compute the VISIBLE TONIGHT pass prediction for the loaded satellites at
-   * the current location. Runs once both are available; expensive (searches
-   * time across the night) so it is only recomputed when location or the
-   * satellite set changes, not on every render.
+   * the current location. Runs once both are available, and again on the
+   * periodic refresh (expensive because it searches time across the night, so
+   * it is not recomputed on every render).
    */
   function computeTonight(): void {
     if (state.location.kind !== "acquired") return;
@@ -200,6 +208,24 @@ export function bootApp(app: HTMLElement): void {
       summary === null
         ? { kind: "no-night" }
         : { kind: "ready", summary };
+  }
+
+  /**
+   * Periodic refresh of every view derived from "now". The tonight summary and
+   * the live above-horizon snapshot are only meaningful at the instant they are
+   * computed, so without this a pass that completes while the page stays open
+   * would keep showing as current/future (AGENTS.md §19b). Cheap enough to run
+   * every minute: guarded to no-op unless a location + satellites exist.
+   */
+  function refreshTimeSensitive(): void {
+    // Skip while the manual "Enter location" form is open so its in-progress
+    // input isn't wiped by the scheduled re-render.
+    if (state.locationEntry.kind === "choosing") return;
+    if (state.location.kind === "acquired" && state.satellites.kind === "loaded") {
+      computeVisibility();
+      computeTonight();
+      render();
+    }
   }
 
   /**
@@ -228,6 +254,8 @@ export function bootApp(app: HTMLElement): void {
   }
 
   void loadSatellites();
+
+  setInterval(refreshTimeSensitive, TONIGHT_REFRESH_MS);
 }
 
 /**
