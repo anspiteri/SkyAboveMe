@@ -52,15 +52,21 @@ Screenshots of the live dashboard, one per view:
 
 **Visible Tonight** — pass prediction for the night ahead
 
-<img src="assets/screenshots/visible-tonight.png" alt="Visible Tonight dashboard" width="100%" />
+<div align="center">
+  <img src="assets/screenshots/visible-tonight.png" alt="Visible Tonight dashboard" width="360" />
+</div>
 
 **Detail panel** — live az / elev / range
 
-<img src="assets/screenshots/detail.png" alt="Satellite detail panel" width="100%" />
+<div align="center">
+  <img src="assets/screenshots/detail.png" alt="Satellite detail panel" width="360" />
+</div>
 
 **Location** — opt-in, manual or GPS
 
-<img src="assets/screenshots/location.png" alt="Opt-in location entry" width="100%" />
+<div align="center">
+  <img src="assets/screenshots/location.png" alt="Opt-in location entry" width="360" />
+</div>
 
 ---
 
