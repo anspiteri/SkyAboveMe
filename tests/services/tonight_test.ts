@@ -6,6 +6,7 @@ import {
   computeTonightSummary,
   deriveBestWindow,
   deriveNextEvents,
+  filterPassesAfter,
 } from "../../src/services/tonight.ts";
 
 /** The curated ISS (ZARYA, NORAD 25544) as a domain satellite for tests. */
@@ -122,6 +123,52 @@ Deno.test("deriveNextEvents: returns [] when nothing is upcoming", () => {
     now,
   );
   assertEquals(events.length, 0);
+});
+
+Deno.test("filterPassesAfter: drops fully-completed passes", () => {
+  const now = new Date("2026-03-20T21:00:00Z");
+  const passes = [
+    pass(1, "2026-03-20T19:00:00Z", "2026-03-20T19:05:00Z", "2026-03-20T19:10:00Z", 30, 0),
+    pass(2, "2026-03-20T20:30:00Z", "2026-03-20T20:36:00Z", "2026-03-20T20:42:00Z", 40, 90),
+    pass(3, "2026-03-20T22:00:00Z", "2026-03-20T22:06:00Z", "2026-03-20T22:12:00Z", 50, 180),
+  ];
+  const kept = filterPassesAfter(passes, now);
+  assertEquals(kept.map((p) => p.noradId), [3]);
+});
+
+Deno.test("filterPassesAfter: keeps an in-progress pass", () => {
+  const now = new Date("2026-03-20T20:35:00Z");
+  const passes = [
+    pass(2, "2026-03-20T20:30:00Z", "2026-03-20T20:36:00Z", "2026-03-20T20:42:00Z", 40, 90),
+  ];
+  const kept = filterPassesAfter(passes, now);
+  assertEquals(kept.length, 1);
+  assert(kept[0]!.riseUtc.getTime() < now.getTime(), "rise already happened");
+  assert(kept[0]!.setUtc.getTime() >= now.getTime(), "set still ahead");
+});
+
+Deno.test("filterPassesAfter: keeps entirely-future passes", () => {
+  const now = new Date("2026-03-20T20:00:00Z");
+  const passes = [
+    pass(3, "2026-03-20T22:00:00Z", "2026-03-20T22:06:00Z", "2026-03-20T22:12:00Z", 50, 180),
+  ];
+  const kept = filterPassesAfter(passes, now);
+  assertEquals(kept.length, 1);
+});
+
+Deno.test("computeTonightSummary: a late-night check has no completed passes", () => {
+  const early = computeTonightSummary([ISS], london, new Date("2026-03-20T12:00:00Z"));
+  const late = computeTonightSummary([ISS], london, new Date("2026-03-20T23:59:00Z"));
+  assert(early !== null && late !== null);
+  if (early === null || late === null) return;
+
+  // Nothing in the late-night summary happened before the check time.
+  for (const p of late.passes) {
+    assert(p.setUtc.getTime() >= late.computedAt.getTime());
+  }
+  // The later check can only show fewer passes than the earlier one.
+  assert(late.passes.length <= early.passes.length);
+  assert(late.nextEvents.every((e) => e.timeUtc.getTime() >= late.computedAt.getTime()));
 });
 
 Deno.test("computeTonightSummary: returns null at a polar no-night location", () => {

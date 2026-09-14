@@ -224,9 +224,11 @@ function renderTonightView(
     wrap.append(renderNextEvents(upcoming, satellitesById));
   }
 
-  wrap.append(
-    renderPassList(summary.passes, satellitesById, props.selection, props.onSelect, positionsById),
-  );
+  if (summary.passes.length > 0) {
+    wrap.append(
+      renderPassList(summary.passes, satellitesById, props.selection, props.onSelect, positionsById),
+    );
+  }
 
   return wrap;
 }

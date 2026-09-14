@@ -64,13 +64,28 @@ export function computeTonightSummary(
 
   passes.sort((a, b) => a.riseUtc.getTime() - b.riseUtc.getTime());
 
+  // A pass that finished before `now` is history, not guidance. Drop it so the
+  // TONIGHT view only ever shows current + upcoming passes, and every derived
+  // section (best window, next events) agrees with the pass list (AGENTS §19b).
+  const remaining = filterPassesAfter(passes, now);
+
   return {
     window: { startUtc: window.start, endUtc: window.end },
-    passes,
-    bestWindow: deriveBestWindow(passes),
-    nextEvents: deriveNextEvents(passes, now, MAX_NEXT_EVENTS),
+    passes: remaining,
+    bestWindow: deriveBestWindow(remaining),
+    nextEvents: deriveNextEvents(remaining, now, MAX_NEXT_EVENTS),
     computedAt: now,
   };
+}
+
+/**
+ * Keep only passes that have not fully completed by `now`: a pass is still
+ * relevant while it is in progress (rise before now, set after now) or entirely
+ * in the future. Completed passes are dropped.
+ */
+export function filterPassesAfter(passes: SatellitePass[], now: Date): SatellitePass[] {
+  const nowMs = now.getTime();
+  return passes.filter((pass) => pass.setUtc.getTime() >= nowMs);
 }
 
 /** Sample one satellite's elevation/azimuth at a single instant. */
