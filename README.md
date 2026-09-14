@@ -48,25 +48,27 @@ small** and focused on satellites.
 
 ## Demo
 
-Screenshots of the live dashboard, one per view:
+Screenshots of the live dashboard:
 
-**Visible Tonight** — pass prediction for the night ahead
-
-<div align="center">
-  <img src="assets/screenshots/visible-tonight.png" alt="Visible Tonight dashboard" width="360" />
-</div>
-
-**Detail panel** — live az / elev / range
-
-<div align="center">
-  <img src="assets/screenshots/detail.png" alt="Satellite detail panel" width="360" />
-</div>
-
-**Location** — opt-in, manual or GPS
-
-<div align="center">
-  <img src="assets/screenshots/location.png" alt="Opt-in location entry" width="360" />
-</div>
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <strong>Visible Tonight</strong><br/>
+      <em>Pass prediction for the night ahead</em><br/><br/>
+      <img src="assets/screenshots/visible-tonight.png" alt="Visible Tonight dashboard" width="360" />
+    </td>
+    <td align="center" width="33%">
+      <strong>Detail panel</strong><br/>
+      <em>Live az / elev / range</em><br/><br/>
+      <img src="assets/screenshots/detail.png" alt="Satellite detail panel" width="360" />
+    </td>
+    <td align="center" width="33%">
+      <strong>Location</strong><br/>
+      <em>Opt-in, manual or GPS</em><br/><br/>
+      <img src="assets/screenshots/location.png" alt="Opt-in location entry" width="360" />
+    </td>
+  </tr>
+</table>
 
 ---
 
