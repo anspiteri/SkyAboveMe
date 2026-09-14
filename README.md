@@ -277,19 +277,19 @@ PolyForm Noncommercial License 1.0.0. See [LICENSE](./LICENSE).
 
 ### Intent
 
-This is a personal project, and the license is deliberately not an open-source
-license. The intent is worth stating plainly:
+This code is **source available** — the full source is public so anyone can
+read it, learn from it, and run it.
 
-- **Source-visible, not source-shared.** The code is public so anyone can read
-  it and learn from it, but this is not a community project. It is developed
-  solo, and there is no expectation of contributions.
-- **No commercialisation — no exceptions.** The license lets anyone use, change,
-  and distribute copies for **any noncommercial purpose** (personal use,
-  research, education, charities, government). Nobody — including me — can
-  commercialise this work or any copy of it.
-- **What it does not do.** It deliberately does not grant a right to use the
-  work commercially, and it is not compatible with being folded into a
-  commercial product or service.
+It is released under the [PolyForm Noncommercial License](./LICENSE), which
+means:
 
-In short: I'm happy for anyone to look up at the sky through this code, but it
-stays a personal project that no one can sell.
+- **Free for any noncommercial purpose.** Personal use, study, research,
+  education, charities, government — all welcome.
+- **The source stays open.** Anyone can view the code, understand how it
+  works, and use those ideas in their own projects.
+- **Commercial use is not permitted.** The software (and any copy of it)
+  cannot be sold or used in a commercial product or service.
+
+I built this to look up at the sky, and I want others to be able to do the
+same. The license keeps it accessible to everyone for noncommercial use while
+preventing it from being enclosed in a commercial product.
