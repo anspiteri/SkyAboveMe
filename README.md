@@ -272,26 +272,23 @@ presentation concern.
 
 ## License
 
-GNU Affero General Public License v3 (AGPL-3.0). See [LICENSE](./LICENSE).
+PolyForm Noncommercial License 1.0.0. See [LICENSE](./LICENSE).
 
 ### Intent
 
-This is a self-hosted tool, not a library or framework. It is released under
-AGPL-3.0 deliberately, and the intent is worth stating plainly:
+This is a personal project, and the license is deliberately not an open-source
+license. The intent is worth stating plainly:
 
-- **Why open source at all.** It lives in my portfolio, and I treat it as real
-  free software. Anyone is welcome to read the code, learn from it, or open an
-  issue.
-- **Why AGPL rather than a permissive license (MIT/Apache).** Because it is a
-  network server, AGPL's network clause is the enforcement I actually want: if
-  someone modifies this and serves it to users over a network, their changes
-  must be released under the same terms. This is a deliberate guard against a
-  copy being quietly forked, hosted, and claimed or monetised in a closed,
-  proprietary way.
-- **What it does not do.** AGPL does not stop someone from forking and running
-  a public copy — it only requires the modified source to stay open. If that
-  ever no longer fits, the license would need to change before contributions
-  are accepted.
+- **Source-visible, not source-shared.** The code is public so anyone can read
+  it and learn from it, but this is not a community project. It is developed
+  solo, and there is no expectation of contributions.
+- **No commercialisation — no exceptions.** The license lets anyone use, change,
+  and distribute copies for **any noncommercial purpose** (personal use,
+  research, education, charities, government). Nobody — including me — can
+  commercialise this work or any copy of it.
+- **What it does not do.** It deliberately does not grant a right to use the
+  work commercially, and it is not compatible with being folded into a
+  commercial product or service.
 
-In short: share alike, stay transparent, and no one gets to close a derivative
-off from the network.
+In short: I'm happy for anyone to look up at the sky through this code, but it
+stays a personal project that no one can sell.
