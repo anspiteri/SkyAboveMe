@@ -8,6 +8,10 @@
   <strong>What's happening above me in space tonight?</strong>
 </p>
 
+<p align="center">
+  <em>Version 0.1.0</em>
+</p>
+
 Sky Above Me is a small, mobile-first web application developed with OpenCode.
 
 This app combines the user's current location and device time with public
@@ -17,12 +21,12 @@ look up — as a single scrollable dashboard.
 
 It is a personal "what's above me?" observatory that starts with Earth-orbiting
 satellites. The long-term vision may grow to cover stars, planets, the Moon,
-space weather, aurora, spacecraft, launches and orbital debris — but **V1 stays
+space weather, aurora, spacecraft, launches and orbital debris — but **0.1 stays
 small** and focused on satellites.
 
 ---
 
-## What V1 currently does
+## What 0.1 currently does
 
 - Builds a satellite position pipeline from browser location → SGP4 propagation
   → observer-relative position → mobile dashboard.
@@ -251,7 +255,7 @@ presentation concern.
 
 ## Architecture decisions
 
-- **No frontend framework.** TypeScript + DOM + CSS keeps V1 lightweight and
+- **No frontend framework.** TypeScript + DOM + CSS keeps 0.1 lightweight and
   easy to understand.
 - **Separation of concerns.** Pure domain/astronomy code has no DOM or network
   dependencies and is independently testable. Components only transform state
