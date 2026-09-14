@@ -60,6 +60,49 @@ Deno.test("tonightWindow: well-formed ordering and sensible bounds", () => {
   }
 });
 
+Deno.test("tonightWindow: a mid-night reference sits inside tonight's window (regression)", () => {
+  // Regression: the window used to anchor on the UTC calendar date, so a +X
+  // timezone user well into the local night (still the same UTC calendar day)
+  // would get a window a night AHEAD — VISIBLE TONIGHT showed tomorrow's
+  // passes instead of the rest of tonight. The observer is placed on the
+  // host's civil meridian so the host clock doubles as the observer clock,
+  // keeping the test independent of where CI runs.
+  const hostOffsetH = -new Date().getTimezoneOffset() / 60;
+  const evening = new Date();
+  evening.setHours(23, 30, 0, 0); // 23:30 local, mid-night at the host meridian
+  const night = tonightWindow(evening, 40.7, hostOffsetH * 15);
+  assert(night !== null, "expected a night at 23:30 local");
+  if (night !== null) {
+    assert(
+      night.start.getTime() < evening.getTime() && evening.getTime() < night.end.getTime(),
+      `23:30 local must sit inside the returned window ` +
+        `${night.start.toISOString()} → ${night.end.toISOString()}`,
+    );
+  }
+});
+
+Deno.test("tonightWindow: during daylight the next night is ahead of the reference", () => {
+  const hostOffsetH = -new Date().getTimezoneOffset() / 60;
+  const afternoon = new Date();
+  afternoon.setHours(14, 0, 0, 0); // 14:00 local, mid-afternoon at the host meridian
+  const night = tonightWindow(afternoon, 40.7, hostOffsetH * 15);
+  assert(night !== null);
+  if (night !== null) {
+    assert(
+      night.start.getTime() > afternoon.getTime(),
+      `the next night should begin after the reference instant`,
+    );
+  }
+});
+
+Deno.test("sunsetUtc: an east-Asian sunset stays on its local calendar day", () => {
+  // Pin the NOAA grounding for a far-east longitude: Hong Kong's 2026-09-14
+  // evening (~18:2x local, HKT) must land at ~10:2xZ on the SAME calendar day,
+  // never on the next local evening.
+  const set = sunsetUtc(new Date(Date.UTC(2026, 8, 14)), 22.3, 114.2);
+  assertWithinMinutes(set, "2026-09-14T10:28:00Z", 5);
+});
+
 Deno.test("tonightWindow: a north-polar summer has no distinct night", () => {
   // Longyearbyen-ish latitude in mid-June → midnight sun → no distinct night.
   const night = tonightWindow(new Date(Date.UTC(2026, 5, 21, 12)), 78.2, 15.6);

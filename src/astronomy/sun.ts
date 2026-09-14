@@ -3,8 +3,10 @@
  *
  * Pure, browser-free functions using the standard NOAA solar-position
  * algorithm (mean anomaly → ecliptic longitude → right ascension → hour angle).
- * The observer's latitude/longitude and a UTC date determine when the Sun
- * crosses the horizon, and the app derives the VISIBLE TONIGHT pass-prediction
+ * The observer's latitude/longitude and the observer's LOCAL calendar date
+ * (passed as UTC-encoded components) determine when the Sun crosses the
+ * horizon — the NOAA `-lngHour` term converts the local-mean-time event back
+ * to a UTC instant — and the app derives the VISIBLE TONIGHT pass-prediction
  * window from the resulting sunset→next-sunrise span.
  *
  * All times are returned as UTC instants so the rest of the pipeline has an
@@ -25,10 +27,11 @@ export interface NightWindow {
 }
 
 /**
- * NOAA sunrise/sunset. `date` is a UTC date (year/month/day used; the time-of-day
- * field is ignored); the algorithm returns the UTC instant of the event on that
- * calendar date, or null where the Sun never rises above / sets below the
- * apparent horizon at this latitude.
+ * NOAA sunrise/sunset. `date`'s UTC year/month/day name the OBSERVER'S LOCAL
+ * calendar date (the time-of-day field is ignored); e.g. request the event for
+ * local 2026-03-20 with `new Date(Date.UTC(2026, 2, 20))`. Returns the UTC
+ * instant of the event on that calendar date, or null where the Sun never
+ * rises above / sets below the apparent horizon at this latitude.
  *
  * `wantRise` selects sunrise vs sunset; the NOAA `t` bias (6h for sunrise, 18h
  * for sunset) encodes when the Sun is at the horizon within the day.
@@ -92,11 +95,16 @@ export function sunsetUtc(date: Date, latDeg: number, lonDeg: number): Date | nu
 }
 
 /**
- * The "tonight" window for the observer at `date`: tonight's sunset → the next
- * sunrise. Handles three cases:
- *   1. still before tonight's sunset → sunset today → sunrise after it;
- *   2. already past tonight's sunset → sunset tomorrow → the sunrise after that;
- *   3. polar day/night → no distinct night → null (the caller shows an honest
+ * The "tonight" window for the observer at `date`: the night that contains
+ * `date`, or if that night has already ended, the next night ahead — sunset
+ * → next sunrise. Anchors on the observer's LOCAL calendar date so a +X
+ * timezone user well into their evening still gets tonight's window rather
+ * than tomorrow's:
+ *   1. before today's sunset → tonight's night begins at it;
+ *   2. at/after today's sunset but before the dawn that ends this night →
+ *      the current night (past passes are filtered out by the caller);
+ *   3. after that dawn (or in a polar edge case) → the next night's sunset;
+ *   4. polar day/night → no distinct night → null (the caller shows an honest
  *      "no distinct night" state instead of guessing).
  */
 export function tonightWindow(
@@ -105,13 +113,26 @@ export function tonightWindow(
   lonDeg: number,
 ): NightWindow | null {
   const today = dateAt(date);
-  const todaySunset = sunsetUtc(today, latDeg, lonDeg);
+  const nowMs = date.getTime();
 
-  // Choose the appropriate sunset.
-  const sunset =
-    todaySunset !== null && todaySunset.getTime() > date.getTime()
-      ? todaySunset
-      : sunsetUtc(addDays(today, 1), latDeg, lonDeg);
+  const todaySunset = sunsetUtc(today, latDeg, lonDeg);
+  if (todaySunset === null) {
+    // No sunset on the local date (midnight sun / polar night) → no night.
+    return null;
+  }
+
+  let sunset: Date | null;
+  if (nowMs <= todaySunset.getTime()) {
+    // Still before this evening's sunset → tonight's night begins at it.
+    sunset = todaySunset;
+  } else if (nowMs < (sunriseUtc(todaySunset, latDeg, lonDeg)?.getTime() ?? Infinity)) {
+    // We've passed today's sunset but this night's dawn is still ahead:
+    // tonight is the current (partially past) night, not tomorrow's.
+    sunset = todaySunset;
+  } else {
+    // The current night ended at its dawn → forecast the next night ahead.
+    sunset = sunsetUtc(addDays(today, 1), latDeg, lonDeg);
+  }
   if (sunset === null) return null;
 
   // The sunrise ending this night is on the same calendar date as the sunset
@@ -139,9 +160,12 @@ function addDays(date: Date, days: number): Date {
   );
 }
 
+/** The observer's LOCAL calendar date of `date`, encoded into UTC components so
+ *  crossingUtc can read them with its `getUTC*` helpers. For a phone app the
+ *  device's local date is the observer's local date. */
 function dateAt(date: Date): Date {
   return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
   );
 }
 
