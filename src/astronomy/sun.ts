@@ -3,8 +3,10 @@
  *
  * Pure, browser-free functions using the standard NOAA solar-position
  * algorithm (mean anomaly → ecliptic longitude → right ascension → hour angle).
- * The observer's latitude/longitude and a UTC date determine when the Sun
- * crosses the horizon, and the app derives the VISIBLE TONIGHT pass-prediction
+ * The observer's latitude/longitude and the observer's LOCAL calendar date
+ * (passed as UTC-encoded components) determine when the Sun crosses the
+ * horizon — the NOAA `-lngHour` term converts the local-mean-time event back
+ * to a UTC instant — and the app derives the VISIBLE TONIGHT pass-prediction
  * window from the resulting sunset→next-sunrise span.
  *
  * All times are returned as UTC instants so the rest of the pipeline has an
@@ -25,10 +27,11 @@ export interface NightWindow {
 }
 
 /**
- * NOAA sunrise/sunset. `date` is a UTC date (year/month/day used; the time-of-day
- * field is ignored); the algorithm returns the UTC instant of the event on that
- * calendar date, or null where the Sun never rises above / sets below the
- * apparent horizon at this latitude.
+ * NOAA sunrise/sunset. `date`'s UTC year/month/day name the OBSERVER'S LOCAL
+ * calendar date (the time-of-day field is ignored); e.g. request the event for
+ * local 2026-03-20 with `new Date(Date.UTC(2026, 2, 20))`. Returns the UTC
+ * instant of the event on that calendar date, or null where the Sun never
+ * rises above / sets below the apparent horizon at this latitude.
  *
  * `wantRise` selects sunrise vs sunset; the NOAA `t` bias (6h for sunrise, 18h
  * for sunset) encodes when the Sun is at the horizon within the day.
@@ -92,41 +95,70 @@ export function sunsetUtc(date: Date, latDeg: number, lonDeg: number): Date | nu
 }
 
 /**
- * The "tonight" window for the observer at `date`: tonight's sunset → the next
- * sunrise. Handles three cases:
- *   1. still before tonight's sunset → sunset today → sunrise after it;
- *   2. already past tonight's sunset → sunset tomorrow → the sunrise after that;
+ * The "tonight" window for the observer at `date`: the night that contains
+ * `date`, or — once that night has ended — the next night ahead (sunset →
+ * next sunrise). A night is a civil concept anchored on the observer's LOCAL
+ * calendar date, so a +X timezone user well into their evening — or between
+ * local midnight and dawn — still gets the CURRENT night:
+ *   1. inside the night begun by the MOST RECENT local sunset (the current
+ *      night, however far past local midnight it is, or however far west) →
+ *      that night; completed passes are filtered out by the caller;
+ *   2. otherwise → the upcoming night's sunset (before sunset, or the
+ *      partially-past night after it);
  *   3. polar day/night → no distinct night → null (the caller shows an honest
  *      "no distinct night" state instead of guessing).
+ *
+ * `timeZoneOffsetMinutes` is the observer's civil offset from UTC (device tz
+ * by default, which for a phone is the observer's; explicit here so tests can
+ * simulate any timezone on any host deterministically).
  */
 export function tonightWindow(
   date: Date,
   latDeg: number,
   lonDeg: number,
+  timeZoneOffsetMinutes?: number,
 ): NightWindow | null {
-  const today = dateAt(date);
-  const todaySunset = sunsetUtc(today, latDeg, lonDeg);
+  const offsetMinutes = timeZoneOffsetMinutes ?? -date.getTimezoneOffset();
+  const today = dateAt(date, offsetMinutes);
+  const nowMs = date.getTime();
 
-  // Choose the appropriate sunset.
-  const sunset =
-    todaySunset !== null && todaySunset.getTime() > date.getTime()
-      ? todaySunset
-      : sunsetUtc(addDays(today, 1), latDeg, lonDeg);
+  // The night in progress is the one begun by the most recent local sunset:
+  // yesterday's if we are past local midnight but still before dawn.
+  const previousSunset = sunsetUtc(addDays(today, -1), latDeg, lonDeg);
+  const inPreviousNight =
+    previousSunset !== null && nowMs >= previousSunset.getTime() &&
+    nowMs < (nightEnd(previousSunset, latDeg, lonDeg)?.getTime() ?? Infinity);
+
+  let sunset: Date | null;
+  if (inPreviousNight) {
+    sunset = previousSunset;
+  } else {
+    const todaySunset = sunsetUtc(today, latDeg, lonDeg);
+    if (todaySunset === null) {
+      // No sunset on the local date (midnight sun / polar night) → no night.
+      return null;
+    }
+    sunset = todaySunset;
+  }
   if (sunset === null) return null;
 
-  // The sunrise ending this night is on the same calendar date as the sunset
-  // (a UT day always spans night→dawn→...→sunset; the next sunrise after that
-  // evening's sunset is the following dawn on the sunset's date).
+  const end = nightEnd(sunset, latDeg, lonDeg);
+  if (end === null || sunset.getTime() >= end.getTime()) return null;
+  return { start: sunset, end };
+}
+
+/** The sunrise (UTC) that ENDS the night begun by `sunset`. For eastern
+ *  longitudes that dawn shares the sunset's UTC calendar date, but for western
+ *  longitudes it falls on the next one — so guard against picking the dawn that
+ *  PRECEDES the sunset (which raw `sunriseUtc(sunset)` returns in that case). */
+function nightEnd(sunset: Date, latDeg: number, lonDeg: number): Date | null {
   let end = sunriseUtc(sunset, latDeg, lonDeg);
   if (end === null) return null;
   if (end.getTime() <= sunset.getTime()) {
-    // Defensive: never produce a degenerate/backwards window.
     end = sunriseUtc(addDays(sunset, 1), latDeg, lonDeg);
     if (end === null) return null;
   }
-
-  if (sunset.getTime() >= end.getTime()) return null;
-  return { start: sunset, end };
+  return end;
 }
 
 function addDays(date: Date, days: number): Date {
@@ -139,9 +171,13 @@ function addDays(date: Date, days: number): Date {
   );
 }
 
-function dateAt(date: Date): Date {
+/** The observer's LOCAL calendar date of `date`, encoded into UTC components so
+ *  crossingUtc can read them with its `getUTC*` helpers. For a phone app the
+ *  device's local date is the observer's local date (the default offset). */
+function dateAt(date: Date, offsetMinutes: number): Date {
+  const civil = new Date(date.getTime() + offsetMinutes * 60_000);
   return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    Date.UTC(civil.getUTCFullYear(), civil.getUTCMonth(), civil.getUTCDate()),
   );
 }
 

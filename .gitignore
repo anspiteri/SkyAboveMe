@@ -1,7 +1,8 @@
-# Project agents/instructions are kept out of version control.
-# Exception: agents/v2.md is intentionally tracked (diagnostic/tracking record).
+# Project agents/instructions and planning notes are kept out of version control.
 AGENTS.md
 agents/STYLE-GUIDE.md
+agents/v2.md
+agents/work-log.md
 
 # Logs
 logs

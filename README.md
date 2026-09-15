@@ -8,6 +8,10 @@
   <strong>What's happening above me in space tonight?</strong>
 </p>
 
+<p align="center">
+  <em>Version 0.1.0</em>
+</p>
+
 Sky Above Me is a small, mobile-first web application developed with OpenCode.
 
 This app combines the user's current location and device time with public
@@ -17,12 +21,12 @@ look up — as a single scrollable dashboard.
 
 It is a personal "what's above me?" observatory that starts with Earth-orbiting
 satellites. The long-term vision may grow to cover stars, planets, the Moon,
-space weather, aurora, spacecraft, launches and orbital debris — but **V1 stays
+space weather, aurora, spacecraft, launches and orbital debris — but **0.1 stays
 small** and focused on satellites.
 
 ---
 
-## What V1 currently does
+## What 0.1 currently does
 
 - Builds a satellite position pipeline from browser location → SGP4 propagation
   → observer-relative position → mobile dashboard.
@@ -44,28 +48,18 @@ small** and focused on satellites.
 
 ## Demo
 
+Screenshots of the live dashboard:
+
 <div align="center">
 
-_Animated capture of the live dashboard_
+<img src="assets/screenshots/visible-tonight.png" alt="Visible Tonight dashboard" width="360" /><br />
+<sub><strong>Visible Tonight</strong> — pass prediction for the night ahead</sub>
 
-<img src="assets/screenshots/demo.gif" alt="Animated demo of Sky Above Me" width="280" />
+<img src="assets/screenshots/detail.png" alt="Satellite detail panel" width="360" /><br />
+<sub><strong>Detail panel</strong> — live az / elev / range</sub>
 
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="assets/screenshots/visible-tonight.png" alt="Visible Tonight dashboard" width="280" /><br />
-      <sub><strong>Visible Tonight</strong> — pass prediction for the night ahead</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/screenshots/detail.png" alt="Satellite detail panel" width="280" /><br />
-      <sub><strong>Detail panel</strong> — live az / elev / range</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="assets/screenshots/location.png" alt="Opt-in location entry" width="280" /><br />
-      <sub><strong>Location</strong> — opt-in, manual or GPS</sub>
-    </td>
-  </tr>
-</table>
+<img src="assets/screenshots/location.png" alt="Opt-in location entry" width="360" /><br />
+<sub><strong>Location</strong> — opt-in, manual or GPS</sub>
 
 </div>
 
@@ -262,7 +256,7 @@ presentation concern.
 
 ## Architecture decisions
 
-- **No frontend framework.** TypeScript + DOM + CSS keeps V1 lightweight and
+- **No frontend framework.** TypeScript + DOM + CSS keeps 0.1 lightweight and
   easy to understand.
 - **Separation of concerns.** Pure domain/astronomy code has no DOM or network
   dependencies and is independently testable. Components only transform state
@@ -272,26 +266,23 @@ presentation concern.
 
 ## License
 
-GNU Affero General Public License v3 (AGPL-3.0). See [LICENSE](./LICENSE).
+PolyForm Noncommercial License 1.0.0. See [LICENSE](./LICENSE).
 
 ### Intent
 
-This is a self-hosted tool, not a library or framework. It is released under
-AGPL-3.0 deliberately, and the intent is worth stating plainly:
+This code is **source available** — the full source is public so anyone can
+read it, learn from it, and run it.
 
-- **Why open source at all.** It lives in my portfolio, and I treat it as real
-  free software. Anyone is welcome to read the code, learn from it, or open an
-  issue.
-- **Why AGPL rather than a permissive license (MIT/Apache).** Because it is a
-  network server, AGPL's network clause is the enforcement I actually want: if
-  someone modifies this and serves it to users over a network, their changes
-  must be released under the same terms. This is a deliberate guard against a
-  copy being quietly forked, hosted, and claimed or monetised in a closed,
-  proprietary way.
-- **What it does not do.** AGPL does not stop someone from forking and running
-  a public copy — it only requires the modified source to stay open. If that
-  ever no longer fits, the license would need to change before contributions
-  are accepted.
+It is released under the [PolyForm Noncommercial License](./LICENSE), which
+means:
 
-In short: share alike, stay transparent, and no one gets to close a derivative
-off from the network.
+- **Free for any noncommercial purpose.** Personal use, study, research,
+  education, charities, government — all welcome.
+- **The source stays open.** Anyone can view the code, understand how it
+  works, and use those ideas in their own projects.
+- **Commercial use is not permitted.** The software (and any copy of it)
+  cannot be sold or used in a commercial product or service.
+
+I built this to look up at the sky, and I want others to be able to do the
+same. The license keeps it accessible to everyone for noncommercial use while
+preventing it from being enclosed in a commercial product.

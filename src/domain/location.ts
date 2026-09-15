@@ -19,7 +19,7 @@ export type LocationSource = "gps" | "manual";
 
 /**
  * Precision of the location. V1 keeps this implicit (GPS is precise, manual is
- * coarse); a finer-grained choice is parked in agents/v2.md.
+ * coarse); a finer-grained choice is a future (0.2+) consideration.
  */
 export type LocationAccuracy = "precise" | "coarse";
 

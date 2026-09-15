@@ -9,6 +9,7 @@ import type {
 } from "../app/state.ts";
 import type { LocationStatusState, PermissionState } from "./LocationStatus.ts";
 import type { ManualLocationInput } from "../domain/location.ts";
+import { APP_VERSION } from "../version.ts";
 import { renderLocationStatus } from "./LocationStatus.ts";
 import { renderSatelliteList } from "./SatelliteList.ts";
 
@@ -78,7 +79,7 @@ export function renderDashboard(root: HTMLElement, props: DashboardProps): void 
 
   const subtitle = document.createElement("p");
   subtitle.className = "dashboard__subtitle";
-  subtitle.textContent = "Local observation system";
+  subtitle.textContent = `Local observation system · v${APP_VERSION}`;
 
   header.append(title, subtitle);
 
