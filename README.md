@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <em>Version 0.1.0</em>
+  <em>Version 0.2.0</em>
 </p>
 
 Sky Above Me is a small, mobile-first web application developed with OpenCode.
