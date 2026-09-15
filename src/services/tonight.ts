@@ -40,8 +40,14 @@ export function computeTonightSummary(
   satellites: Satellite[],
   observer: Observer,
   now: Date,
+  timeZoneOffsetMinutes?: number,
 ): TonightSummary | null {
-  const window = tonightWindow(now, observer.latitude, observer.longitude);
+  const window = tonightWindow(
+    now,
+    observer.latitude,
+    observer.longitude,
+    timeZoneOffsetMinutes,
+  );
   if (window === null) return null;
 
   const observerEcf = getObserverPosition(observer);
