@@ -7,7 +7,7 @@
  * Choosing a city never requires a network call, keeps the location in the
  * browser, and avoids sending a typed query string anywhere (AGENTS.md §18).
  *
- * Free-text place search is a V2 idea (see agents/v2.md).
+ * Free-text place search is a future (0.2+) idea.
  */
 
 export interface City {
